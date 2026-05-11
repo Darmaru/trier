@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="docs/assets/trier.svg" alt="Trier logo" width="120">
+  <a href="https://plugins.jetbrains.com/plugin/31703-trier">
+    <img src="docs/assets/trier.svg" alt="Trier logo" width="120">
+  </a>
 </p>
 
 <h1 align="center">Trier</h1>
