@@ -127,20 +127,13 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Initial public release.</strong></p>
+            <p><strong>Automated publishing release.</strong></p>
             <ul>
-                <li>Sort Tailwind classes without running full Prettier formatting.</li>
-                <li>Use Tailwind Labs sorting logic from <code>prettier-plugin-tailwindcss/sorter</code>.</li>
-                <li>Run sorting manually, on save, or after Reformat Code.</li>
-                <li>Sort the current file, selected editor range, Project View files, and Project View folders.</li>
-                <li>Process folders with configurable glob patterns.</li>
-                <li>Preview folder-wide changes with dry-run reports and JetBrains diff viewer integration.</li>
-                <li>Configure Node runtime, Tailwind config, Tailwind stylesheet, attributes, functions, whitespace, and duplicates from the IDE settings UI.</li>
-                <li>Bundle the Node-side sorter dependencies so user projects do not need local Prettier packages.</li>
+                <li>Added automated JetBrains Marketplace publishing via GitHub Actions.</li>
+                <li>Added plugin signing and Marketplace publishing configuration for CI releases.</li>
+                <li>Added GitHub Actions plugin ZIP artifact upload for each tagged release.</li>
+                <li>Documented the release flow and required GitHub repository secrets.</li>
             </ul>
-            <p>
-                Requires a local Node.js 20.19+ runtime. Astro and Svelte support is best-effort in this version.
-            </p>
             """.trimIndent()
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")

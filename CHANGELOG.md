@@ -2,6 +2,18 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.1.1] - 2026-05-11
+
+### Added
+
+- Automated JetBrains Marketplace publishing via GitHub Actions.
+- Plugin signing and Marketplace publishing configuration for CI releases.
+- GitHub Actions plugin ZIP artifact upload for each tagged release.
+
+### Changed
+
+- Documented the release flow and required GitHub repository secrets.
+
 ## [0.1.0] - 2026-05-11
 
 ### Added
