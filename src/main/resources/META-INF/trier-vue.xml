@@ -1,0 +1,3 @@
+<idea-plugin>
+    <!-- Vue support is PSI-based and does not require Vue-specific extension declarations. -->
+</idea-plugin>

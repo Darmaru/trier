@@ -115,3 +115,23 @@ Run the sandbox IDE:
 ```bash
 ./gradlew runIde
 ```
+
+## Publishing
+
+Publishing is automated with GitHub Actions when a version tag is pushed.
+
+Required GitHub repository secrets:
+
+- `PUBLISH_TOKEN`
+- `CERTIFICATE_CHAIN`
+- `PRIVATE_KEY`
+- `PRIVATE_KEY_PASSWORD`
+
+Release flow:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow runs `check`, builds the plugin artifact, uploads the ZIP as a GitHub Actions artifact, signs the plugin when signing secrets are present, and publishes it to JetBrains Marketplace with `publishPlugin`.

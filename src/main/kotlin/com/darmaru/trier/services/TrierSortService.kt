@@ -13,7 +13,6 @@ import com.intellij.javascript.nodejs.interpreter.local.NodeJsLocalInterpreter
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.editor.Document
@@ -462,7 +461,7 @@ class TrierSortService {
         useFallback: Boolean = true,
     ): String {
         val sorter = { values: List<String> -> sortClassAttributes(project, filePath, values, settings) }
-        return ReadAction.compute<String, RuntimeException> {
+        return ApplicationManager.getApplication().runReadAction<String> {
             val virtualFile = filePath?.let { LocalFileSystem.getInstance().findFileByPath(it) }
             val psiFile =
                 virtualFile?.let {

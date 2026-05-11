@@ -125,9 +125,36 @@ intellijPlatform {
                 Trier is designed for teams that want reliable Tailwind class ordering while preserving framework-specific formatting in HTML, JSX, Vue, and related frontend files.
             </p>
             """.trimIndent()
+        changeNotes =
+            """
+            <p><strong>Initial public release.</strong></p>
+            <ul>
+                <li>Sort Tailwind classes without running full Prettier formatting.</li>
+                <li>Use Tailwind Labs sorting logic from <code>prettier-plugin-tailwindcss/sorter</code>.</li>
+                <li>Run sorting manually, on save, or after Reformat Code.</li>
+                <li>Sort the current file, selected editor range, Project View files, and Project View folders.</li>
+                <li>Process folders with configurable glob patterns.</li>
+                <li>Preview folder-wide changes with dry-run reports and JetBrains diff viewer integration.</li>
+                <li>Configure Node runtime, Tailwind config, Tailwind stylesheet, attributes, functions, whitespace, and duplicates from the IDE settings UI.</li>
+                <li>Bundle the Node-side sorter dependencies so user projects do not need local Prettier packages.</li>
+            </ul>
+            <p>
+                Requires a local Node.js 20.19+ runtime. Astro and Svelte support is best-effort in this version.
+            </p>
+            """.trimIndent()
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
         }
+    }
+
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
     }
 }
 
