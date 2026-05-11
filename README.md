@@ -11,22 +11,12 @@
 </p>
 
 <p align="center">
-  <a href="https://plugins.jetbrains.com/plugin/31703-trier">
-    <img src="https://img.shields.io/jetbrains/plugin/v/31703-trier?label=JetBrains%20Marketplace" alt="JetBrains Marketplace version">
-  </a>
-  <a href="https://plugins.jetbrains.com/plugin/31703-trier">
-    <img src="https://img.shields.io/jetbrains/plugin/d/31703-trier?label=downloads" alt="JetBrains Marketplace downloads">
-  </a>
-  <a href="https://github.com/Darmaru/trier/actions/workflows/publish.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/Darmaru/trier/publish.yml?label=publish" alt="Publish workflow status">
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/Darmaru/trier" alt="License">
-  </a>
-  <a href="CHANGELOG.md">
-    <img src="https://img.shields.io/badge/changelog-keep%20a%20changelog-0A66C2" alt="Changelog">
-  </a>
+  <a href="https://plugins.jetbrains.com/plugin/31703-trier"><img src="https://img.shields.io/jetbrains/plugin/v/31703-trier?label=JetBrains%20Marketplace" alt="JetBrains Marketplace version"></a>
+  <a href="https://plugins.jetbrains.com/plugin/31703-trier"><img src="https://img.shields.io/jetbrains/plugin/d/31703-trier?label=downloads" alt="JetBrains Marketplace downloads"></a>
+  <a href="https://github.com/Darmaru/trier/actions/workflows/publish.yml"><img src="https://img.shields.io/github/actions/workflow/status/Darmaru/trier/publish.yml?label=publish" alt="Publish workflow status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Darmaru/trier" alt="License"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20.19-339933?logo=node.js&logoColor=white" alt="Node.js 20.19 or newer">
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-0A66C2" alt="Changelog"></a>
 </p>
 
 <!-- Plugin description -->
