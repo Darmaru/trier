@@ -1,0 +1,7 @@
+.gradle/
+.intellijPlatform/
+.idea/
+bundled-node/node_modules/
+build/
+out/
+.DS_Store
