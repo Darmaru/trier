@@ -1,4 +1,12 @@
-# Trier
+<p align="center">
+  <img src="docs/assets/trier.svg" alt="Trier logo" width="120">
+</p>
+
+<h1 align="center">Trier</h1>
+
+<p align="center">
+  Sort Tailwind CSS classes in JetBrains IDEs without full Prettier formatting.
+</p>
 
 <!-- Plugin description -->
 Trier is a JetBrains IDE plugin for sorting Tailwind CSS classes with the Tailwind Labs sorter from `prettier-plugin-tailwindcss`, without running full Prettier code formatting.
