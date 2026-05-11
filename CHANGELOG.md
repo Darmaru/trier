@@ -2,6 +2,19 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.1.2] - 2026-05-11
+
+### Added
+
+- Added JaCoCo test coverage reporting with HTML and XML reports.
+- Added additional platform and service tests for Project View selection, dry-run reports, Node helper extraction, Node worker execution, folder glob handling, file dry-runs, and settings propagation.
+- Added README badges for JetBrains Marketplace version, downloads, publishing status, license, changelog, and Node.js runtime requirement.
+
+### Changed
+
+- Reworked the README to better explain Trier's editor workflows, folder sorting, dry-run diffs, supported code patterns, settings, runtime requirements, and framework coverage.
+- Updated the JetBrains Marketplace plugin description to match the expanded README messaging.
+
 ## [0.1.1] - 2026-05-11
 
 ### Added

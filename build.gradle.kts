@@ -1,6 +1,7 @@
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Zip
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -8,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin)
     alias(libs.plugins.intelliJPlatform)
     alias(libs.plugins.spotless)
+    jacoco
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -103,36 +105,70 @@ intellijPlatform {
         description =
             """
             <p>
-                Trier keeps Tailwind CSS class lists consistently ordered inside JetBrains IDEs without running full Prettier formatting.
-                It uses the Tailwind sorting logic from <code>prettier-plugin-tailwindcss</code>, but applies only class sorting so your existing code style stays intact.
+                Trier keeps Tailwind CSS class lists consistently ordered in JetBrains IDEs while leaving the rest of
+                your code untouched.
+                It uses the Tailwind Labs sorting engine from <code>prettier-plugin-tailwindcss</code>, but applies
+                only class sorting instead of running full Prettier formatting.
             </p>
+            <p><strong>Why Trier</strong></p>
+            <ul>
+                <li>Focused Tailwind class sorting without changing indentation, quotes, wrapping, semicolons, or
+                unrelated code style.</li>
+                <li>Official Tailwind class order from <code>prettier-plugin-tailwindcss/sorter</code>.</li>
+                <li>Bundled Node-side sorting runtime, so your project does not need local <code>prettier</code>
+                dependencies.</li>
+                <li>IDE-native workflow for manual sorting, selected ranges, save hooks, reformat hooks, files, and
+                folders.</li>
+            </ul>
             <p><strong>Core features</strong></p>
             <ul>
-                <li>Sort Tailwind classes in the current file or selected editor fragment.</li>
-                <li>Run automatically on save or together with the IDE's Reformat Code action.</li>
-                <li>Sort a selected file or a whole directory from the Project tool window.</li>
-                <li>Process folders with configurable glob patterns.</li>
-                <li>Preview folder-wide changes with dry-run reports and JetBrains diff viewer integration.</li>
+                <li>Sort the current editor, a selected plain class list, or class candidates inside the selected
+                range.</li>
+                <li>Run automatically on Save or after the IDE's Reformat Code action.</li>
+                <li>Sort selected files and folders from the Project View context menu.</li>
+                <li>Scan folders with configurable glob patterns in a cancellable background task.</li>
+                <li>Preview bulk changes with dry-run reports, per-file diffs, and JetBrains diff chain
+                integration.</li>
+            </ul>
+            <p><strong>Supported patterns</strong></p>
+            <ul>
+                <li>HTML/XML <code>class</code> attributes and JSX/TSX <code>className</code>.</li>
+                <li>JSX/TSX string literals, template literals, ternaries, arrays, and object keys containing class
+                fragments.</li>
+                <li>Vue SFC template classes, dynamic <code>:class</code> bindings,
+                <code>&lt;script setup&gt;</code> helper calls, and <code>&lt;style&gt;</code>
+                <code>@apply</code>.</li>
+                <li>CSS/SCSS <code>@apply</code>.</li>
+                <li>Custom attributes and custom class helper functions such as <code>cn</code>, <code>clsx</code>,
+                or tagged template helpers when configured.</li>
             </ul>
             <p><strong>Configuration</strong></p>
             <ul>
-                <li>Uses the IDE JavaScript runtime selection UI for Node.js.</li>
+                <li>Uses the IDE JavaScript Runtime selector for Node.js.</li>
                 <li>Requires a local Node.js 20.19+ runtime.</li>
                 <li>Supports Tailwind config and stylesheet paths.</li>
-                <li>Bundles the Node-side sorting runtime with the plugin, so project-local dependencies are not required.</li>
+                <li>Supports preserve whitespace, preserve duplicates, custom attributes, and custom functions.</li>
+                <li>Includes a runtime test button that validates Node.js, bundled runtime extraction, helper startup,
+                and a real sample sort.</li>
             </ul>
             <p>
-                Trier is designed for teams that want reliable Tailwind class ordering while preserving framework-specific formatting in HTML, JSX, Vue, and related frontend files.
+                Trier is designed for teams that want reliable Tailwind ordering across HTML, JSX, TSX, Vue, CSS, and
+                related frontend files without giving up their existing IDE formatting workflow.
             </p>
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Automated publishing release.</strong></p>
+            <p><strong>Documentation and test coverage release.</strong></p>
             <ul>
-                <li>Added automated JetBrains Marketplace publishing via GitHub Actions.</li>
-                <li>Added plugin signing and Marketplace publishing configuration for CI releases.</li>
-                <li>Added GitHub Actions plugin ZIP artifact upload for each tagged release.</li>
-                <li>Documented the release flow and required GitHub repository secrets.</li>
+                <li>Reworked the README with clearer workflow, configuration, runtime, and framework coverage
+                details.</li>
+                <li>Updated the JetBrains Marketplace plugin description to match the expanded project
+                documentation.</li>
+                <li>Added README badges for Marketplace version, downloads, publish status, license, changelog, and
+                Node.js runtime requirement.</li>
+                <li>Added JaCoCo test coverage reporting with HTML and XML output.</li>
+                <li>Expanded test coverage for Project View selection, dry-run reports, Node helper extraction,
+                Node worker execution, folder glob handling, file dry-runs, and settings propagation.</li>
             </ul>
             """.trimIndent()
         ideaVersion {
@@ -165,6 +201,24 @@ spotless {
 tasks {
     test {
         useJUnit()
+        finalizedBy(jacocoTestReport)
+
+        extensions.configure<JacocoTaskExtension> {
+            isIncludeNoLocationClasses = true
+            excludes = listOf("jdk.internal.*")
+        }
+    }
+
+    jacocoTestReport {
+        dependsOn(test)
+
+        classDirectories.setFrom(layout.buildDirectory.dir("instrumented/instrumentCode"))
+
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            csv.required.set(false)
+        }
     }
 
     check {
