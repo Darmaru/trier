@@ -16,15 +16,21 @@ class TrierExecutionGuard {
         document: Document?,
         action: () -> T,
     ): T? {
-        if (document != null && !activeDocuments.add(document)) {
+        if (!tryEnter(document)) {
             return null
         }
         return try {
             action()
         } finally {
-            if (document != null) {
-                activeDocuments.remove(document)
-            }
+            release(document)
+        }
+    }
+
+    fun tryEnter(document: Document?): Boolean = document == null || activeDocuments.add(document)
+
+    fun release(document: Document?) {
+        if (document != null) {
+            activeDocuments.remove(document)
         }
     }
 }

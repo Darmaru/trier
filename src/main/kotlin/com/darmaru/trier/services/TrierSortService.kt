@@ -30,6 +30,7 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileFilter
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.util.ExceptionUtil
 import java.nio.file.FileSystems
@@ -81,22 +82,32 @@ class TrierSortService {
         selectionRange: TextRange? = currentSelectionRange(editor),
     ) {
         val document = editor.document
+        if (!shouldRunDocumentSortSynchronously()) {
+            sortDocumentInBackground(
+                project = project,
+                document = document,
+                trigger = trigger,
+                selectionRange = selectionRange,
+                commitPsi = true,
+                useCommand = true,
+                saveAfterApply = false,
+            )
+            return
+        }
+
         guard.guard(document) {
-            if (selectionRange != null && !selectionRange.isEmpty) {
-                val original = document.text
-                val updated = processSelectionText(project, original, currentFilePath(document), selectionRange)
-                if (updated != original) {
-                    com.intellij.openapi.command.WriteCommandAction
-                        .writeCommandAction(project)
-                        .withName("Trier Sort Tailwind Classes")
-                        .run<RuntimeException> {
-                            document.setText(updated)
-                            PsiDocumentManager.getInstance(project).commitDocument(document)
-                        }
-                }
-            } else {
-                sortDocumentInternal(project, document, trigger)
-            }
+            sortDocumentSnapshot(
+                project = project,
+                document = document,
+                trigger = trigger,
+                original = document.text,
+                originalModificationStamp = document.modificationStamp,
+                filePath = currentFilePath(document),
+                selectionRange = selectionRange,
+                commitPsi = true,
+                useCommand = true,
+                saveAfterApply = false,
+            )
         }
     }
 
@@ -105,8 +116,32 @@ class TrierSortService {
         document: Document,
         trigger: String,
     ) {
+        if (!shouldRunDocumentSortSynchronously()) {
+            sortDocumentInBackground(
+                project = project,
+                document = document,
+                trigger = trigger,
+                selectionRange = null,
+                commitPsi = true,
+                useCommand = true,
+                saveAfterApply = false,
+            )
+            return
+        }
+
         guard.guard(document) {
-            sortDocumentInternal(project, document, trigger)
+            sortDocumentSnapshot(
+                project = project,
+                document = document,
+                trigger = trigger,
+                original = document.text,
+                originalModificationStamp = document.modificationStamp,
+                filePath = currentFilePath(document),
+                selectionRange = null,
+                commitPsi = true,
+                useCommand = true,
+                saveAfterApply = false,
+            )
         }
     }
 
@@ -117,8 +152,33 @@ class TrierSortService {
         if (!settings.sortOnSave) {
             return
         }
+
+        if (!shouldRunDocumentSortSynchronously()) {
+            sortDocumentInBackground(
+                project = project,
+                document = document,
+                trigger = "Save",
+                selectionRange = null,
+                commitPsi = false,
+                useCommand = false,
+                saveAfterApply = true,
+            )
+            return
+        }
+
         guard.guard(document) {
-            sortDocumentInternal(project, document, "Save", commitPsi = false, useCommand = false)
+            sortDocumentSnapshot(
+                project = project,
+                document = document,
+                trigger = "Save",
+                original = document.text,
+                originalModificationStamp = document.modificationStamp,
+                filePath = currentFilePath(document),
+                selectionRange = null,
+                commitPsi = false,
+                useCommand = false,
+                saveAfterApply = false,
+            )
         }
     }
 
@@ -274,10 +334,19 @@ class TrierSortService {
         var scanned = 0
         var skipped = 0
         val failures = mutableListOf<FolderSortFailure>()
+        val scanFilter =
+            VirtualFileFilter { file ->
+                if (file.isDirectory && file != root && shouldSkipFolder(file)) {
+                    skipped++
+                    false
+                } else {
+                    true
+                }
+            }
 
         try {
             indicator?.text = "Scanning files"
-            VfsUtilCore.iterateChildrenRecursively(root, null) { file ->
+            VfsUtilCore.iterateChildrenRecursively(root, scanFilter) { file ->
                 indicator?.checkCanceled()
                 if (!file.isDirectory) {
                     scanned++
@@ -318,6 +387,7 @@ class TrierSortService {
         var changed = 0
         var updated = 0
         var unchanged = 0
+        var skippedCount = skipped
 
         for ((index, file) in matchedFiles.withIndex()) {
             try {
@@ -326,6 +396,11 @@ class TrierSortService {
                 indicator?.text2 = file.path
                 if (matchedFiles.isNotEmpty()) {
                     indicator?.fraction = index.toDouble() / matchedFiles.size.toDouble()
+                }
+
+                if (shouldSkipMatchedFile(file)) {
+                    skippedCount++
+                    continue
                 }
 
                 val original = VfsUtilCore.loadText(file)
@@ -363,7 +438,7 @@ class TrierSortService {
                     changed = changed,
                     updated = updated,
                     unchanged = unchanged,
-                    skipped = skipped,
+                    skipped = skippedCount,
                     failed = failures.size,
                     cancelled = true,
                     dryRun = dryRun,
@@ -390,7 +465,7 @@ class TrierSortService {
             changed = changed,
             updated = updated,
             unchanged = unchanged,
-            skipped = skipped,
+            skipped = skippedCount,
             failed = failures.size,
             dryRun = dryRun,
             failures = failures,
@@ -450,6 +525,32 @@ class TrierSortService {
                 showTrierDryRunReport(project, root.path, report)
             }
         }
+    }
+
+    private fun shouldSkipFolder(file: VirtualFile): Boolean = file.name in FOLDER_SORT_EXCLUDED_DIRECTORIES
+
+    private fun shouldSkipMatchedFile(file: VirtualFile): Boolean =
+        file.length > MAX_SORTABLE_FILE_BYTES || isProbablyBinary(file)
+
+    private fun isProbablyBinary(file: VirtualFile): Boolean {
+        val sampleSize = minOf(file.length, BINARY_SAMPLE_BYTES.toLong()).toInt()
+        if (sampleSize <= 0) {
+            return false
+        }
+
+        val sample = ByteArray(sampleSize)
+        val read =
+            file.inputStream.use { input ->
+                input.read(sample)
+            }
+        if (read <= 0) {
+            return false
+        }
+
+        return sample
+            .asSequence()
+            .take(read)
+            .any { it == 0.toByte() }
     }
 
     private fun processWithPsi(
@@ -512,16 +613,137 @@ class TrierSortService {
         }
     }
 
-    private fun sortDocumentInternal(
+    private fun sortDocumentInBackground(
         project: Project,
         document: Document,
         trigger: String,
+        selectionRange: TextRange?,
+        commitPsi: Boolean,
+        useCommand: Boolean,
+        saveAfterApply: Boolean,
+    ) {
+        if (!guard.tryEnter(document)) {
+            return
+        }
+
+        val original = document.text
+        val originalModificationStamp = document.modificationStamp
+        val filePath = currentFilePath(document)
+
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
+                override fun run(indicator: ProgressIndicator) {
+                    try {
+                        indicator.text = "Sorting Tailwind classes"
+                        val updated = computeDocumentUpdate(project, original, filePath, selectionRange)
+                        if (updated == original || project.isDisposed) {
+                            guard.release(document)
+                            return
+                        }
+
+                        ApplicationManager.getApplication().invokeLater {
+                            applyDocumentUpdate(
+                                project = project,
+                                document = document,
+                                trigger = trigger,
+                                original = original,
+                                originalModificationStamp = originalModificationStamp,
+                                updated = updated,
+                                commitPsi = commitPsi,
+                                useCommand = useCommand,
+                                saveAfterApply = saveAfterApply,
+                            )
+                        }
+                    } catch (error: ProcessCanceledException) {
+                        guard.release(document)
+                        throw error
+                    } catch (error: Exception) {
+                        guard.release(document)
+                        helperService.notifyError("Trier failed", error.message ?: error.javaClass.simpleName)
+                    }
+                }
+
+                override fun onCancel() {
+                    guard.release(document)
+                }
+
+                override fun onThrowable(error: Throwable) {
+                    guard.release(document)
+                }
+            },
+        )
+    }
+
+    private fun sortDocumentSnapshot(
+        project: Project,
+        document: Document,
+        trigger: String,
+        original: String,
+        originalModificationStamp: Long,
+        filePath: String?,
+        selectionRange: TextRange?,
         commitPsi: Boolean = true,
         useCommand: Boolean = true,
+        saveAfterApply: Boolean = false,
     ) {
-        val original = document.text
-        val updated = processText(project, original, currentFilePath(document))
+        val updated = computeDocumentUpdate(project, original, filePath, selectionRange)
         if (updated != original) {
+            applyDocumentUpdate(
+                project = project,
+                document = document,
+                trigger = trigger,
+                original = original,
+                originalModificationStamp = originalModificationStamp,
+                updated = updated,
+                commitPsi = commitPsi,
+                useCommand = useCommand,
+                saveAfterApply = saveAfterApply,
+                releaseGuard = false,
+            )
+        }
+    }
+
+    private fun computeDocumentUpdate(
+        project: Project,
+        original: String,
+        filePath: String?,
+        selectionRange: TextRange?,
+    ): String =
+        if (selectionRange != null && !selectionRange.isEmpty) {
+            processSelectionText(project, original, filePath, selectionRange)
+        } else {
+            processText(project, original, filePath)
+        }
+
+    private fun applyDocumentUpdate(
+        project: Project,
+        document: Document,
+        trigger: String,
+        original: String,
+        originalModificationStamp: Long,
+        updated: String,
+        commitPsi: Boolean,
+        useCommand: Boolean,
+        saveAfterApply: Boolean,
+        releaseGuard: Boolean = true,
+    ) {
+        try {
+            if (project.isDisposed) {
+                return
+            }
+
+            if (document.modificationStamp != originalModificationStamp || document.text != original) {
+                NotificationGroupManager
+                    .getInstance()
+                    .getNotificationGroup("Trier")
+                    .createNotification(
+                        "Trier skipped sorting",
+                        "The document changed while Trier was sorting it. Run sorting again to apply the latest content.",
+                        NotificationType.WARNING,
+                    ).notify(project)
+                return
+            }
+
             val applyChange = {
                 document.setText(updated)
                 if (commitPsi) {
@@ -546,8 +768,19 @@ class TrierSortService {
                     )
                 }
             }
+
+            if (saveAfterApply) {
+                FileDocumentManager.getInstance().saveDocument(document)
+            }
+        } finally {
+            if (releaseGuard) {
+                guard.release(document)
+            }
         }
     }
+
+    private fun shouldRunDocumentSortSynchronously(): Boolean =
+        ApplicationManager.getApplication().isUnitTestMode && !forceBackgroundDocumentSortForTest
 
     private fun sortClassAttributes(
         project: Project,
@@ -667,7 +900,9 @@ class TrierSortService {
                 ?: error("Selected JavaScript Runtime could not be resolved for project '${project.name}'.")
 
         return try {
-            NodeJsLocalInterpreter.castAndValidate(interpreter).interpreterSystemDependentPath
+            TrierNodeRuntimeValidator.validateLocalNodeRuntime(
+                NodeJsLocalInterpreter.castAndValidate(interpreter).interpreterSystemDependentPath,
+            )
         } catch (_: ExecutionException) {
             error(
                 "Trier currently supports only local Node.js runtimes. Select a local JavaScript Runtime in the IDE settings.",
@@ -678,6 +913,31 @@ class TrierSortService {
     companion object {
         @Volatile
         private var testSortOverride: ((Project, String?, List<String>, TrierResolvedSettings) -> List<String>)? = null
+
+        @Volatile
+        internal var forceBackgroundDocumentSortForTest: Boolean = false
+
+        private const val MAX_SORTABLE_FILE_BYTES = 2L * 1024L * 1024L
+        private const val BINARY_SAMPLE_BYTES = 8192
+
+        private val FOLDER_SORT_EXCLUDED_DIRECTORIES =
+            setOf(
+                ".git",
+                ".gradle",
+                ".idea",
+                ".next",
+                ".nuxt",
+                ".svelte-kit",
+                "build",
+                "cache",
+                ".cache",
+                "coverage",
+                "dist",
+                "node_modules",
+                "out",
+                "target",
+                "vendor",
+            )
 
         fun getInstance(): TrierSortService =
             ApplicationManager.getApplication().getService(TrierSortService::class.java)

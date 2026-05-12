@@ -6,7 +6,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.io.path.createTempDirectory
 import kotlin.io.path.createTempFile
+import kotlin.io.path.div
 import kotlin.io.path.writeText
 
 class TrierNodeWorkerServiceTest {
@@ -137,5 +139,56 @@ class TrierNodeWorkerServiceTest {
 
         assertEquals(listOf("FLEX P-4", "TEXT-CENTER"), first)
         assertEquals(listOf("FONT-BOLD"), second)
+    }
+
+    @Test
+    fun workerServiceTimesOutStuckWorkerAndRestartsOnNextRequest() {
+        val tempDir = createTempDirectory("trier-worker-timeout-test")
+        val marker = tempDir / "first-run.marker"
+        val script =
+            createTempFile("trier-worker-timeout-test", ".mjs").also {
+                it.writeText(
+                    """
+                    import fs from 'node:fs';
+                    import readline from 'node:readline';
+
+                    const marker = '${marker.toString().replace("\\", "\\\\").replace("'", "\\'")}';
+                    const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+
+                    for await (const line of rl) {
+                        const payload = JSON.parse(line);
+                        if (!fs.existsSync(marker)) {
+                            fs.writeFileSync(marker, 'seen');
+                            await new Promise(() => {});
+                        }
+                        process.stdout.write(`${'$'}{JSON.stringify({
+                            id: payload.id,
+                            values: payload.values.map((value) => `restarted:${'$'}{value}`),
+                        })}\n`);
+                    }
+                    """.trimIndent(),
+                )
+            }
+        val service = TrierNodeWorkerService()
+        val request =
+            TrierNodeRequest(
+                moduleBase = "/tmp/runtime",
+                base = "/tmp/project",
+                filepath = null,
+                configPath = null,
+                stylesheetPath = null,
+                preserveWhitespace = false,
+                preserveDuplicates = false,
+                values = listOf("flex"),
+            )
+
+        val timeout =
+            assertThrows(IllegalStateException::class.java) {
+                service.sort("node", script, request, timeoutMillis = 300)
+            }
+        val restarted = service.sort("node", script, request, timeoutMillis = 2_000)
+
+        assertTrue(timeout.message?.contains("did not respond within 300ms") == true)
+        assertEquals(listOf("restarted:flex"), restarted)
     }
 }

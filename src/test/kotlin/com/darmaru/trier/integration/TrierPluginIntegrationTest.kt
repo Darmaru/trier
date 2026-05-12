@@ -21,12 +21,15 @@ import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.div
+import kotlin.io.path.readBytes
 import kotlin.io.path.readText
+import kotlin.io.path.writeBytes
 import kotlin.io.path.writeText
 
 class TrierPluginIntegrationTest : BasePlatformTestCase() {
@@ -42,6 +45,7 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
 
     override fun tearDown() {
         TrierSortService.setTestSortOverride(null)
+        TrierSortService.forceBackgroundDocumentSortForTest = false
         TrierSettingsState.getInstance().loadState(initialSettings)
         super.tearDown()
     }
@@ -52,6 +56,21 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         SortTailwindInEditorAction().actionPerformed(testEvent())
 
         myFixture.checkResult("""<div class="flex bg-red-500 p-4 text-center font-bold"></div>""")
+    }
+
+    fun testManualActionBackgroundPathAppliesResult() {
+        val original = """<div class="text-center p-4 flex bg-red-500 font-bold"></div>"""
+        val sorted = """<div class="flex bg-red-500 p-4 text-center font-bold"></div>"""
+        myFixture.configureByText("test.html", original)
+        TrierSortService.forceBackgroundDocumentSortForTest = true
+
+        SortTailwindInEditorAction().actionPerformed(testEvent())
+
+        PlatformTestUtil.waitWithEventsDispatching(
+            "background Trier sort result was not applied",
+            { myFixture.editor.document.text == sorted },
+            5000,
+        )
     }
 
     fun testSaveListenerSortsDocumentWhenEnabled() {
@@ -156,6 +175,36 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(1, report.scanned)
         assertEquals(1, report.matched)
         assertEquals(1, report.updated)
+    }
+
+    fun testSortFolderSkipsExcludedDirectoriesBinaryFilesAndLargeFiles() {
+        val root = createTempDirectory("trier-folder-skip-safety-test")
+        val validFile = root / "component.html"
+        val nodeModules = (root / "node_modules").createDirectories()
+        val excludedFile = nodeModules / "component.html"
+        val binaryFile = root / "binary.html"
+        val largeFile = root / "large.html"
+        val original = """<div class="text-center p-4 flex bg-red-500 font-bold"></div>"""
+        val binaryContent = byteArrayOf('<'.code.toByte(), 0, '>'.code.toByte())
+        val largeContent = original + " ".repeat(2 * 1024 * 1024 + 1)
+
+        validFile.writeText(original)
+        excludedFile.writeText(original)
+        binaryFile.writeBytes(binaryContent)
+        largeFile.writeText(largeContent)
+
+        val report = TrierSortService.getInstance().sortFolder(project, root.toString(), "*.html")
+
+        assertEquals("""<div class="flex bg-red-500 p-4 text-center font-bold"></div>""", validFile.readText())
+        assertEquals(original, excludedFile.readText())
+        assertEquals(largeContent, largeFile.readText())
+        assertTrue(binaryContent.contentEquals(binaryFile.readBytes()))
+        assertEquals(3, report.scanned)
+        assertEquals(3, report.matched)
+        assertEquals(1, report.changed)
+        assertEquals(1, report.updated)
+        assertEquals(3, report.skipped)
+        assertEquals(0, report.failed)
     }
 
     fun testSortFolderDryRunReportsChangesWithoutWritingFiles() {

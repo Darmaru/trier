@@ -2,6 +2,26 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.0] - 2026-05-12
+
+### Added
+
+- Added background editor, save, and reformat sorting so Tailwind processing no longer blocks the IDE UI path.
+- Added document snapshot checks before applying background sort results, with save-triggered sorting saving the document again after applying changes.
+- Added Node worker response timeouts and restart handling for stuck helper processes.
+- Added local Node.js version validation requiring Node.js 20.19 or newer.
+- Added custom attribute and function regex validation in settings before values are saved.
+- Added pull request and main-branch CI for `check`, `verifyPlugin`, and `buildPlugin`.
+- Added IntelliJ Plugin Verifier configuration for the current target IDE.
+- Added JaCoCo coverage thresholds to fail `check` on coverage regressions.
+
+### Changed
+
+- Hardened folder sorting by skipping common vendor, build, and cache directories during scans.
+- Skipped binary files and files larger than 2 MiB during folder and Project View file sorting.
+- Updated the IntelliJ Platform Gradle Plugin to 2.16.0 and enabled Gradle toolchain provisioning.
+- Updated release documentation for the 0.2.0 release flow.
+
 ## [0.1.2] - 2026-05-11
 
 ### Added

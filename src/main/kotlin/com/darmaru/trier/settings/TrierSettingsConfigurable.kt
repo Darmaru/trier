@@ -1,6 +1,8 @@
 package com.darmaru.trier.settings
 
 import com.darmaru.trier.processing.toResolvedSettings
+import com.darmaru.trier.processing.validateNamePatterns
+import com.darmaru.trier.services.TrierNodeRuntimeValidator
 import com.darmaru.trier.services.TrierSortService
 import com.intellij.execution.ExecutionException
 import com.intellij.javascript.nodejs.interpreter.NodeJsInterpreterField
@@ -148,6 +150,7 @@ class TrierSettingsConfigurable : Configurable {
         validateNodeInterpreter()
         validateOptionalPath("Stylesheet", tailwindStylesheetField.text)
         validateOptionalPath("Config", tailwindConfigField.text)
+        validateCustomPatterns()
     }
 
     private fun scrollable(area: JBTextArea): JComponent = JBScrollPane(area)
@@ -305,14 +308,13 @@ class TrierSettingsConfigurable : Configurable {
 
         return try {
             val path = NodeJsLocalInterpreter.castAndValidate(interpreter).interpreterSystemDependentPath
-            if (path.isBlank() || !Files.isRegularFile(Path.of(path))) {
-                throw ConfigurationException("Resolved Node.js executable was not found on disk: $path")
-            }
-            path
+            TrierNodeRuntimeValidator.validateLocalNodeRuntime(path)
         } catch (_: ExecutionException) {
             throw ConfigurationException(
                 "Trier currently supports only local Node.js runtimes. Select a local JavaScript Runtime.",
             )
+        } catch (error: IllegalStateException) {
+            throw ConfigurationException(error.message ?: "Invalid Node.js runtime.")
         }
     }
 
@@ -335,6 +337,16 @@ class TrierSettingsConfigurable : Configurable {
         }
         if (!Files.isRegularFile(Path.of(path))) {
             throw ConfigurationException("$label must point to a file: $path")
+        }
+    }
+
+    private fun validateCustomPatterns() {
+        val settings = currentResolvedSettings()
+        try {
+            validateNamePatterns("Attributes", settings.tailwindAttributes)
+            validateNamePatterns("Functions", settings.tailwindFunctions)
+        } catch (error: IllegalArgumentException) {
+            throw ConfigurationException(error.message ?: "Invalid Trier custom pattern.")
         }
     }
 

@@ -10,6 +10,22 @@ fun buildAttributePredicates(customValues: List<String>): List<(String) -> Boole
 fun buildFunctionPredicates(customValues: List<String>): List<(String) -> Boolean> =
     customValues.distinct().map(::toNamePredicate)
 
+fun validateNamePatterns(
+    label: String,
+    customValues: List<String>,
+) {
+    customValues.forEach { rawValue ->
+        val trimmed = rawValue.trim()
+        if (trimmed.startsWith("/") && trimmed.endsWith("/") && trimmed.length > 2) {
+            try {
+                Regex(trimmed.removePrefix("/").removeSuffix("/"))
+            } catch (error: IllegalArgumentException) {
+                throw IllegalArgumentException("$label contains invalid regex '$trimmed': ${error.message}", error)
+            }
+        }
+    }
+}
+
 private fun toNamePredicate(rawValue: String): (String) -> Boolean {
     val trimmed = rawValue.trim()
     if (trimmed.startsWith("/") && trimmed.endsWith("/") && trimmed.length > 2) {

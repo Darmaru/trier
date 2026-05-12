@@ -54,6 +54,7 @@ dependencies {
             },
         )
         testFramework(TestFrameworkType.Platform)
+        pluginVerifier()
     }
 }
 
@@ -158,17 +159,17 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Documentation and test coverage release.</strong></p>
+            <p><strong>Reliability and CI release.</strong></p>
             <ul>
-                <li>Reworked the README with clearer workflow, configuration, runtime, and framework coverage
-                details.</li>
-                <li>Updated the JetBrains Marketplace plugin description to match the expanded project
-                documentation.</li>
-                <li>Added README badges for Marketplace version, downloads, publish status, license, changelog, and
-                Node.js runtime requirement.</li>
-                <li>Added JaCoCo test coverage reporting with HTML and XML output.</li>
-                <li>Expanded test coverage for Project View selection, dry-run reports, Node helper extraction,
-                Node worker execution, folder glob handling, file dry-runs, and settings propagation.</li>
+                <li>Moved editor, save, and reformat sorting work to background tasks while applying results only when
+                the document has not changed.</li>
+                <li>Added Node worker response timeouts and restart handling for stuck helper processes.</li>
+                <li>Hardened folder sorting by skipping common vendor/build/cache directories, binary files, and large
+                files.</li>
+                <li>Validated local Node.js runtime versions and custom attribute/function regex settings before
+                sorting.</li>
+                <li>Added pull request and branch CI with checks, plugin verification, plugin builds, and JaCoCo
+                coverage thresholds.</li>
             </ul>
             """.trimIndent()
         ideaVersion {
@@ -184,6 +185,12 @@ intellijPlatform {
 
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")
+    }
+
+    pluginVerification {
+        ides {
+            current()
+        }
     }
 }
 
@@ -221,8 +228,30 @@ tasks {
         }
     }
 
+    jacocoTestCoverageVerification {
+        dependsOn(test)
+
+        classDirectories.setFrom(layout.buildDirectory.dir("instrumented/instrumentCode"))
+
+        violationRules {
+            rule {
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "0.70".toBigDecimal()
+                }
+                limit {
+                    counter = "BRANCH"
+                    value = "COVEREDRATIO"
+                    minimum = "0.50".toBigDecimal()
+                }
+            }
+        }
+    }
+
     check {
         dependsOn(spotlessCheck)
+        dependsOn(jacocoTestCoverageVerification)
     }
 
     processResources {

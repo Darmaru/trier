@@ -8,7 +8,10 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.absolutePathString
 
 @Service(Service.Level.APP)
@@ -20,16 +23,17 @@ class TrierNodeWorkerService {
         nodePath: String,
         scriptPath: Path,
         request: TrierNodeRequest,
+        timeoutMillis: Long = DEFAULT_WORKER_TIMEOUT_MILLIS,
     ): List<String> =
         synchronized(lock) {
             var lastError: Exception? = null
             repeat(2) { attempt ->
                 try {
-                    return ensureWorker(nodePath, scriptPath).send(request)
+                    return ensureWorker(nodePath, scriptPath).send(request, timeoutMillis)
                 } catch (error: Exception) {
                     lastError = error
                     destroyWorker()
-                    if (attempt == 1) {
+                    if (error is WorkerTimeoutException || attempt == 1) {
                         throw error
                     }
                 }
@@ -72,7 +76,10 @@ class TrierNodeWorkerService {
 
         fun isAlive(): Boolean = process.isAlive
 
-        fun send(request: TrierNodeRequest): List<String> {
+        fun send(
+            request: TrierNodeRequest,
+            timeoutMillis: Long,
+        ): List<String> {
             if (!isAlive()) {
                 throw IllegalStateException("Trier Node worker is not running. ${stderrMessage()}")
             }
@@ -83,10 +90,47 @@ class TrierNodeWorkerService {
             stdin.flush()
 
             val line =
-                stdout.readLine()
+                readStdoutLine(timeoutMillis)
                     ?: throw IllegalStateException("Trier Node worker closed stdout. ${stderrMessage()}")
 
             return parseResponse(id, line)
+        }
+
+        private fun readStdoutLine(timeoutMillis: Long): String? {
+            val result = AtomicReference<Result<String?>>()
+            val done = CountDownLatch(1)
+            Thread
+                .ofVirtual()
+                .name("trier-node-worker-stdout")
+                .start {
+                    result.set(runCatching { stdout.readLine() })
+                    done.countDown()
+                }
+
+            val completed =
+                try {
+                    done.await(timeoutMillis, TimeUnit.MILLISECONDS)
+                } catch (error: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    process.destroyForcibly()
+                    throw IllegalStateException("Interrupted while waiting for Trier Node worker response.", error)
+                }
+
+            if (!completed) {
+                process.destroyForcibly()
+                throw WorkerTimeoutException(
+                    "Trier Node worker did not respond within ${timeoutMillis}ms. The worker was restarted.",
+                )
+            }
+
+            return result
+                .get()
+                .getOrElse { error ->
+                    throw IllegalStateException(
+                        "Trier Node worker failed while reading stdout. ${stderrMessage()}",
+                        error,
+                    )
+                }
         }
 
         fun close() {
@@ -94,7 +138,14 @@ class TrierNodeWorkerService {
             runCatching { stdout.close() }
             if (process.isAlive) {
                 process.destroy()
-                if (process.isAlive) {
+                val stopped =
+                    try {
+                        process.waitFor(500, TimeUnit.MILLISECONDS)
+                    } catch (error: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        false
+                    }
+                if (!stopped && process.isAlive) {
                     process.destroyForcibly()
                 }
             }
@@ -153,6 +204,8 @@ class TrierNodeWorkerService {
     }
 
     companion object {
+        private const val DEFAULT_WORKER_TIMEOUT_MILLIS = 30_000L
+
         internal fun parseWorkerResponse(
             expectedId: Long,
             raw: String,
@@ -370,4 +423,8 @@ class TrierNodeWorkerService {
             }
         }
     }
+
+    private class WorkerTimeoutException(
+        message: String,
+    ) : IllegalStateException(message)
 }

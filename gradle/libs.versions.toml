@@ -1,4 +1,4 @@
 [plugins]
-intelliJPlatform = { id = "org.jetbrains.intellij.platform", version = "2.13.1" }
+intelliJPlatform = { id = "org.jetbrains.intellij.platform", version = "2.16.0" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version = "2.3.20" }
 spotless = { id = "com.diffplug.spotless", version = "7.2.1" }

@@ -138,6 +138,40 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
         configurable.disposeUIResources()
     }
 
+    fun testApplyRejectsInvalidCustomAttributeRegex() {
+        val configurable = TrierSettingsConfigurable()
+        configurable.createComponent()
+        val view = configurable.testView()
+        view.tailwindAttributesArea.text = "/[/"
+
+        try {
+            configurable.apply()
+            fail("Expected ConfigurationException for invalid attribute regex")
+        } catch (error: ConfigurationException) {
+            assertTrue(error.localizedMessage.startsWith("Attributes contains invalid regex '/[/':"))
+        }
+
+        assertEquals("", TrierSettingsState.getInstance().snapshot().tailwindAttributes)
+        configurable.disposeUIResources()
+    }
+
+    fun testApplyRejectsInvalidCustomFunctionRegex() {
+        val configurable = TrierSettingsConfigurable()
+        configurable.createComponent()
+        val view = configurable.testView()
+        view.tailwindFunctionsArea.text = "cn, /(/"
+
+        try {
+            configurable.apply()
+            fail("Expected ConfigurationException for invalid function regex")
+        } catch (error: ConfigurationException) {
+            assertTrue(error.localizedMessage.startsWith("Functions contains invalid regex '/(/':"))
+        }
+
+        assertEquals("", TrierSettingsState.getInstance().snapshot().tailwindFunctions)
+        configurable.disposeUIResources()
+    }
+
     fun testRuntimeProbeUsesCurrentFormValues() {
         val configurable = TrierSettingsConfigurable()
         configurable.createComponent()
