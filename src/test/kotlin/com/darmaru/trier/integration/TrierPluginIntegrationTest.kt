@@ -1,8 +1,7 @@
 package com.darmaru.trier.integration
 
 import com.darmaru.trier.actions.SortTailwindInEditorAction
-import com.darmaru.trier.actions.SortTailwindInFileAction
-import com.darmaru.trier.actions.SortTailwindInFolderAction
+import com.darmaru.trier.actions.SortTailwindInProjectViewAction
 import com.darmaru.trier.listeners.TrierActionListener
 import com.darmaru.trier.listeners.TrierSaveListener
 import com.darmaru.trier.services.TrierExecutionGuard
@@ -337,7 +336,7 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(0, report.updated)
     }
 
-    fun testProjectViewFileActionIsEnabledOnlyForSelectedFile() {
+    fun testProjectViewActionIsEnabledForSelectedFile() {
         val root = createTempDirectory("trier-project-view-file-action-test")
         val file = root / "component.html"
         file.writeText("""<div class="text-center p-4 flex bg-red-500 font-bold"></div>""")
@@ -345,7 +344,7 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
             com.intellij.openapi.vfs.LocalFileSystem
                 .getInstance()
                 .refreshAndFindFileByNioFile(file)!!
-        val action = SortTailwindInFileAction()
+        val action = SortTailwindInProjectViewAction()
 
         val event = projectViewEvent(virtualFile)
         action.update(event)
@@ -354,13 +353,13 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertTrue(event.presentation.isEnabled)
     }
 
-    fun testProjectViewFolderActionIsEnabledOnlyForSelectedDirectory() {
+    fun testProjectViewActionIsEnabledForSelectedDirectory() {
         val root = createTempDirectory("trier-project-view-folder-action-test")
         val virtualFile =
             com.intellij.openapi.vfs.LocalFileSystem
                 .getInstance()
                 .refreshAndFindFileByNioFile(root)!!
-        val action = SortTailwindInFolderAction()
+        val action = SortTailwindInProjectViewAction()
 
         val event = projectViewEvent(virtualFile)
         action.update(event)

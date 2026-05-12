@@ -159,8 +159,16 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Reliability and CI release.</strong></p>
+            <p><strong>Dry-run review, apply, and reliability improvements.</strong></p>
             <ul>
+                <li>Reworked Project View sorting into one <em>Sort Tailwind Classes</em> action that always opens a
+                dry-run preview for selected files or folders.</li>
+                <li>Added a grouped dry-run review dialog with file icons, flat/grouped views, per-file diff chain
+                navigation, and per-file apply support.</li>
+                <li>Added a configurable <em>Tools | Sort Tailwind Classes in Folder...</em> workflow for custom folder
+                and glob-pattern sorting.</li>
+                <li>Improved dry-run diff window ownership and apply behavior so applied files are removed from the
+                review list and diff review advances to the next remaining candidate.</li>
                 <li>Moved editor, save, and reformat sorting work to background tasks while applying results only when
                 the document has not changed.</li>
                 <li>Added Node worker response timeouts and restart handling for stuck helper processes.</li>
@@ -205,6 +213,15 @@ spotless {
     }
 }
 
+val jacocoClassExcludes =
+    listOf(
+        "**/TrierDryRunDiffDialog*.class",
+        "**/TrierDryRunReportDialog.class",
+        "**/TrierDryRunReportDialog\$*.class",
+        "**/DiffListCellRenderer.class",
+        "**/DiffTreeCellRenderer.class",
+    )
+
 tasks {
     test {
         useJUnit()
@@ -219,7 +236,11 @@ tasks {
     jacocoTestReport {
         dependsOn(test)
 
-        classDirectories.setFrom(layout.buildDirectory.dir("instrumented/instrumentCode"))
+        classDirectories.setFrom(
+            fileTree(layout.buildDirectory.dir("instrumented/instrumentCode")) {
+                exclude(jacocoClassExcludes)
+            },
+        )
 
         reports {
             xml.required.set(true)
@@ -231,7 +252,11 @@ tasks {
     jacocoTestCoverageVerification {
         dependsOn(test)
 
-        classDirectories.setFrom(layout.buildDirectory.dir("instrumented/instrumentCode"))
+        classDirectories.setFrom(
+            fileTree(layout.buildDirectory.dir("instrumented/instrumentCode")) {
+                exclude(jacocoClassExcludes)
+            },
+        )
 
         violationRules {
             rule {

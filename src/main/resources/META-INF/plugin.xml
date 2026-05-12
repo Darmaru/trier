@@ -41,10 +41,10 @@
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
         <action
-                id="Trier.SortFile"
-                class="com.darmaru.trier.actions.SortTailwindInFileAction"
+                id="Trier.SortProjectView"
+                class="com.darmaru.trier.actions.SortTailwindInProjectViewAction"
                 text="Sort Tailwind Classes"
-                description="Sort Tailwind classes in the selected file"
+                description="Preview Tailwind class sorting for the selected file or folder"
                 icon="/icons/trier.svg">
             <add-to-group
                     group-id="ProjectViewPopupMenuModifyGroup"
@@ -54,14 +54,10 @@
         <action
                 id="Trier.SortFolder"
                 class="com.darmaru.trier.actions.SortTailwindInFolderAction"
-                text="Sort Tailwind Classes in Folder"
-                description="Sort Tailwind classes in a folder using a glob pattern"
+                text="Sort Tailwind Classes in Folder..."
+                description="Sort Tailwind classes in a folder using a custom glob pattern"
                 icon="/icons/trier.svg">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <add-to-group
-                    group-id="ProjectViewPopupMenuModifyGroup"
-                    anchor="after"
-                    relative-to-action="ReformatCode"/>
         </action>
     </actions>
 </idea-plugin>

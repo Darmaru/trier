@@ -1,6 +1,7 @@
 package com.darmaru.trier.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.nio.file.Files
 
 class TrierDryRunReportTest : BasePlatformTestCase() {
     fun testBuildDryRunReportTextIncludesEmptyChangesAndCancelledStatus() {
@@ -74,5 +75,58 @@ class TrierDryRunReportTest : BasePlatformTestCase() {
 
         assertEquals(1, requests.size)
         assertEquals("Trier Dry Run: valid.html", requests.single().getTitle())
+    }
+
+    fun testApplyDryRunChangeWritesFile() {
+        val file = Files.createTempFile("trier-dry-run-apply", ".html")
+        file.toFile().writeText("""<div class="p-4 flex"></div>""")
+
+        val result =
+            applyDryRunChange(
+                project,
+                FolderSortChange(
+                    path = file.toString(),
+                    relativePath = "component.html",
+                    originalText = """<div class="p-4 flex"></div>""",
+                    sortedText = """<div class="flex p-4"></div>""",
+                ),
+            )
+
+        assertEquals(DryRunApplyResult.Applied, result)
+        assertEquals("""<div class="flex p-4"></div>""", file.toFile().readText())
+    }
+
+    fun testApplyDryRunChangeSkipsChangedFile() {
+        val file = Files.createTempFile("trier-dry-run-stale", ".html")
+        file.toFile().writeText("""<div class="text-center flex"></div>""")
+
+        val result =
+            applyDryRunChange(
+                project,
+                FolderSortChange(
+                    path = file.toString(),
+                    relativePath = "component.html",
+                    originalText = """<div class="p-4 flex"></div>""",
+                    sortedText = """<div class="flex p-4"></div>""",
+                ),
+            )
+
+        assertEquals(DryRunApplyResult.FileChanged, result)
+        assertEquals("""<div class="text-center flex"></div>""", file.toFile().readText())
+    }
+
+    fun testApplyDryRunChangeSkipsIncompletePreview() {
+        val result =
+            applyDryRunChange(
+                project,
+                FolderSortChange(
+                    path = "/tmp/project/component.html",
+                    relativePath = "component.html",
+                    originalText = null,
+                    sortedText = """<div class="flex p-4"></div>""",
+                ),
+            )
+
+        assertEquals(DryRunApplyResult.MissingPreview, result)
     }
 }

@@ -522,7 +522,7 @@ class TrierSortService {
 
         application.invokeLater {
             if (!project.isDisposed) {
-                showTrierDryRunReport(project, root.path, report)
+                showTrierDryRunReport(project, root.path, report, forceListForChanges = root.isDirectory)
             }
         }
     }

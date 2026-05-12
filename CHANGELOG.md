@@ -8,6 +8,10 @@ All notable changes to Trier are documented in this file.
 
 - Added background editor, save, and reformat sorting so Tailwind processing no longer blocks the IDE UI path.
 - Added document snapshot checks before applying background sort results, with save-triggered sorting saving the document again after applying changes.
+- Added a quick Project View dry-run action for selected files and folders, with file selections opening a diff directly and folder selections opening a changed-file review list.
+- Added a grouped dry-run review dialog with file type icons, a flat/grouped toggle, per-file diff chain navigation, and per-file apply support.
+- Added an `Apply` action to dry-run diffs so individual previewed file changes can be written without rerunning the full folder sort.
+- Added a Tools menu `Sort Tailwind Classes in Folder...` action for configurable folder, glob pattern, and dry-run workflows.
 - Added Node worker response timeouts and restart handling for stuck helper processes.
 - Added local Node.js version validation requiring Node.js 20.19 or newer.
 - Added custom attribute and function regex validation in settings before values are saved.
@@ -17,6 +21,9 @@ All notable changes to Trier are documented in this file.
 
 ### Changed
 
+- Merged the Project View file and folder actions into one `Sort Tailwind Classes` action that always previews changes before writing.
+- Improved dry-run diff window ownership so opened diff windows stay in front of the dry-run review dialog.
+- Updated dry-run apply behavior to remove applied files from the review list and advance the diff chain to the next remaining candidate.
 - Hardened folder sorting by skipping common vendor, build, and cache directories during scans.
 - Skipped binary files and files larger than 2 MiB during folder and Project View file sorting.
 - Updated the IntelliJ Platform Gradle Plugin to 2.16.0 and enabled Gradle toolchain provisioning.

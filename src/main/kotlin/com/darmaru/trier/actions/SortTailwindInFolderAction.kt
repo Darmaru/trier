@@ -20,12 +20,7 @@ import javax.swing.JPanel
 class SortTailwindInFolderAction : DumbAwareAction() {
     override fun actionPerformed(event: AnActionEvent) {
         val project = event.project ?: return
-        val initialRootPath =
-            event
-                .selectedProjectViewFile()
-                ?.takeIf { it.isDirectory }
-                ?.path
-                ?: project.basePath.orEmpty()
+        val initialRootPath = project.basePath.orEmpty()
         val dialog = TrierFolderDialog(project, initialRootPath)
         if (!dialog.showAndGet()) {
             return
@@ -43,12 +38,6 @@ class SortTailwindInFolderAction : DumbAwareAction() {
             dialog.globPattern(),
             dialog.isDryRun(),
         )
-    }
-
-    override fun update(event: AnActionEvent) {
-        val selectedFile = event.selectedProjectViewFile()
-        event.presentation.isVisible = event.project != null
-        event.presentation.isEnabled = !event.isProjectViewPopup() || selectedFile?.isDirectory == true
     }
 }
 
