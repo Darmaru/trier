@@ -7,7 +7,7 @@
 <h1 align="center">Trier</h1>
 
 <p align="center">
-  Tailwind CSS class sorting for JetBrains IDEs, powered by the official Tailwind Labs sorter, without full Prettier formatting.
+  Tailwind CSS class sorting for JetBrains IDEs, powered by the official Tailwind Labs sorter.
 </p>
 
 <p align="center">
