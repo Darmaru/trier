@@ -187,7 +187,11 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            recommended()
+            if (providers.gradleProperty("pluginVerifierRecommended").isPresent) {
+                recommended()
+            } else {
+                current()
+            }
         }
     }
 }
