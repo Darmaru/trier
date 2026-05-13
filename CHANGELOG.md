@@ -2,6 +2,14 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.1] - 2026-05-13
+
+### Fixed
+
+- Fixed bulk dry-run `Apply` and `Apply Selected` so large apply batches run through a background task with progress instead of repeatedly rebuilding the review UI on the EDT.
+- Fixed a write-safety error when applying dry-run changes while the dry-run review dialog is open.
+- Cached dry-run file icons to avoid expensive file type lookups during large review list updates.
+
 ## [0.2.0] - 2026-05-13
 
 ### Highlights

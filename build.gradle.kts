@@ -162,29 +162,14 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Dry-run review, selective apply, and safer background sorting.</strong></p>
-            <p>
-                Trier 0.2.0 turns folder and Project View sorting into a safer preview-first workflow. You can inspect
-                changed files, open selected diffs, apply everything, or apply only selected files and directories
-                directly from the dry-run review dialog.
-            </p>
+            <p><strong>Dry-run apply stability improvements.</strong></p>
             <ul>
-                <li>Reworked Project View sorting into one preview-first <em>Sort Tailwind Classes</em> action for
-                selected files and folders.</li>
-                <li>Added grouped and flat dry-run review views with file icons, multi-selection, selected diffs,
-                copied reports, apply-all, apply-selected, and individual diff apply.</li>
-                <li>Added <em>Tools | Sort Tailwind Classes in Folder...</em> for configurable folder, glob-pattern,
-                and dry-run workflows.</li>
-                <li>Moved editor, save, and reformat sorting to background tasks and apply results only when the
-                document still matches the processed snapshot.</li>
-                <li>Hardened folder scans by skipping common vendor/build/cache directories, binary files, and large
-                files.</li>
-                <li>Fixed default <code>**/...</code> glob handling so files directly inside the selected folder are
-                included in dry-run reports.</li>
-                <li>Added Node.js 20.19+ validation, custom regex validation, worker timeouts, and worker restart
-                handling.</li>
-                <li>Added pull request and branch CI with checks, plugin verification, plugin builds, and JaCoCo
-                coverage gates.</li>
+                <li>Fixed bulk dry-run <em>Apply</em> and <em>Apply Selected</em> so large apply batches run through a
+                background task with progress instead of repeatedly rebuilding the review UI on the EDT.</li>
+                <li>Fixed a write-safety error when applying dry-run changes while the dry-run review dialog is
+                open.</li>
+                <li>Cached dry-run file icons to avoid expensive file type lookups during large review list
+                updates.</li>
             </ul>
             """.trimIndent()
         ideaVersion {
