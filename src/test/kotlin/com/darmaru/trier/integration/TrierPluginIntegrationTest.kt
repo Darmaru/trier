@@ -19,6 +19,9 @@ import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.progress.EmptyProgressIndicator
+import com.intellij.openapi.progress.ProcessCanceledException
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.TestActionEvent
@@ -70,6 +73,104 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
             { myFixture.editor.document.text == sorted },
             5000,
         )
+    }
+
+    fun testDocumentBackgroundTaskReleasesGuardWhenNoChangesAreProduced() {
+        myFixture.configureByText("test.html", """<div></div>""")
+        val document = myFixture.editor.document
+        val guard = ApplicationManager.getApplication().getService(TrierExecutionGuard::class.java)
+        TrierSortService.setTestSortOverride { _, _, values, _ -> values }
+
+        assertTrue(guard.tryEnter(document))
+        TrierSortService
+            .getInstance()
+            .createSortDocumentTask(
+                project = project,
+                document = document,
+                trigger = "Manual",
+                selectionRange = null,
+                commitPsi = true,
+                useCommand = true,
+                saveAfterApply = false,
+            ).run(EmptyProgressIndicator())
+
+        assertEquals("released", guard.guard(document) { "released" })
+    }
+
+    fun testDocumentBackgroundTaskReleasesGuardWhenSelectionSortFails() {
+        val text = "text-center p-4 flex"
+        myFixture.configureByText("test.html", text)
+        val document = myFixture.editor.document
+        val guard = ApplicationManager.getApplication().getService(TrierExecutionGuard::class.java)
+        TrierSortService.setTestSortOverride { _, _, _, _ -> error("Sort failed") }
+
+        assertTrue(guard.tryEnter(document))
+        TrierSortService
+            .getInstance()
+            .createSortDocumentTask(
+                project = project,
+                document = document,
+                trigger = "Manual",
+                selectionRange = TextRange(0, text.length),
+                commitPsi = true,
+                useCommand = true,
+                saveAfterApply = false,
+            ).run(EmptyProgressIndicator())
+
+        assertEquals("released", guard.guard(document) { "released" })
+        assertEquals(text, document.text)
+    }
+
+    fun testDocumentBackgroundTaskReleasesGuardWhenCancelled() {
+        val text = "text-center p-4 flex"
+        myFixture.configureByText("test.html", text)
+        val document = myFixture.editor.document
+        val guard = ApplicationManager.getApplication().getService(TrierExecutionGuard::class.java)
+        TrierSortService.setTestSortOverride { _, _, _, _ -> throw ProcessCanceledException() }
+
+        assertTrue(guard.tryEnter(document))
+        try {
+            TrierSortService
+                .getInstance()
+                .createSortDocumentTask(
+                    project = project,
+                    document = document,
+                    trigger = "Manual",
+                    selectionRange = TextRange(0, text.length),
+                    commitPsi = true,
+                    useCommand = true,
+                    saveAfterApply = false,
+                ).run(EmptyProgressIndicator())
+            fail("Expected ProcessCanceledException")
+        } catch (_: ProcessCanceledException) {
+            assertEquals("released", guard.guard(document) { "released" })
+        }
+    }
+
+    fun testDocumentBackgroundTaskCancelCallbacksReleaseGuard() {
+        myFixture.configureByText("test.html", """<div></div>""")
+        val document = myFixture.editor.document
+        val guard = ApplicationManager.getApplication().getService(TrierExecutionGuard::class.java)
+        val task =
+            TrierSortService
+                .getInstance()
+                .createSortDocumentTask(
+                    project = project,
+                    document = document,
+                    trigger = "Manual",
+                    selectionRange = null,
+                    commitPsi = true,
+                    useCommand = true,
+                    saveAfterApply = false,
+                )
+
+        assertTrue(guard.tryEnter(document))
+        task.onCancel()
+        assertEquals("released after cancel", guard.guard(document) { "released after cancel" })
+
+        assertTrue(guard.tryEnter(document))
+        task.onThrowable(RuntimeException("failed"))
+        assertEquals("released after throwable", guard.guard(document) { "released after throwable" })
     }
 
     fun testSaveListenerSortsDocumentWhenEnabled() {
@@ -353,6 +454,73 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(0, report.updated)
     }
 
+    fun testSortFileBackgroundTaskAppliesResult() {
+        val root = createTempDirectory("trier-file-background-task-test")
+        val file = root / "component.html"
+        file.writeText("""<div class="text-center p-4 flex bg-red-500 font-bold"></div>""")
+        val virtualFile =
+            com.intellij.openapi.vfs.LocalFileSystem
+                .getInstance()
+                .refreshAndFindFileByNioFile(file)!!
+        var capturedReport: com.darmaru.trier.services.FolderSortReport? = null
+
+        TrierSortService
+            .getInstance()
+            .createSortFileTask(project, virtualFile) { report ->
+                capturedReport = report
+            }.run(EmptyProgressIndicator())
+
+        assertEquals("""<div class="flex bg-red-500 p-4 text-center font-bold"></div>""", file.readText())
+        assertEquals(1, capturedReport?.scanned)
+        assertEquals(1, capturedReport?.matched)
+        assertEquals(1, capturedReport?.changed)
+        assertEquals(1, capturedReport?.updated)
+    }
+
+    fun testSortFileBackgroundTaskSkipsDirectory() {
+        val root = createTempDirectory("trier-file-background-directory-task-test")
+        val virtualFile =
+            com.intellij.openapi.vfs.LocalFileSystem
+                .getInstance()
+                .refreshAndFindFileByNioFile(root)!!
+        var capturedReport: com.darmaru.trier.services.FolderSortReport? = null
+
+        TrierSortService
+            .getInstance()
+            .createSortFileTask(project, virtualFile, dryRun = true) { report ->
+                capturedReport = report
+            }.run(EmptyProgressIndicator())
+
+        assertEquals(1, capturedReport?.scanned)
+        assertEquals(1, capturedReport?.skipped)
+        assertEquals(true, capturedReport?.dryRun)
+    }
+
+    fun testSortFolderBackgroundTaskProducesDryRunReport() {
+        val root = createTempDirectory("trier-folder-background-task-test")
+        val file = root / "component.html"
+        file.writeText("""<div class="text-center p-4 flex bg-red-500 font-bold"></div>""")
+        val virtualRoot =
+            com.intellij.openapi.vfs.LocalFileSystem
+                .getInstance()
+                .refreshAndFindFileByNioFile(root)!!
+        var capturedReport: com.darmaru.trier.services.FolderSortReport? = null
+
+        TrierSortService
+            .getInstance()
+            .createSortFolderTask(project, virtualRoot, "*.html", dryRun = true) { report ->
+                capturedReport = report
+            }.run(EmptyProgressIndicator())
+
+        assertEquals("""<div class="text-center p-4 flex bg-red-500 font-bold"></div>""", file.readText())
+        assertEquals(1, capturedReport?.scanned)
+        assertEquals(1, capturedReport?.matched)
+        assertEquals(1, capturedReport?.changed)
+        assertEquals(0, capturedReport?.updated)
+        assertEquals(true, capturedReport?.dryRun)
+        assertEquals("component.html", capturedReport?.changes?.single()?.relativePath)
+    }
+
     fun testProjectViewActionIsEnabledForSelectedFile() {
         val root = createTempDirectory("trier-project-view-file-action-test")
         val file = root / "component.html"
@@ -481,8 +649,7 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
             project,
             myFixture.editor,
             "Manual",
-            com.intellij.openapi.util
-                .TextRange(selectionStart, selectionStart + selectedText.length),
+            TextRange(selectionStart, selectionStart + selectedText.length),
         )
 
         assertEquals(

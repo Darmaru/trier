@@ -617,7 +617,7 @@ private class TrierDryRunDiffDialog(
     }
 }
 
-private data class DryRunDiffEntry(
+internal data class DryRunDiffEntry(
     val relativePath: String,
     val change: FolderSortChange,
     val request: SimpleDiffRequest,
@@ -626,7 +626,7 @@ private data class DryRunDiffEntry(
     override fun toString(): String = relativePath
 }
 
-private fun DryRunDiffEntry.attachApplyAction(
+internal fun DryRunDiffEntry.attachApplyAction(
     project: Project,
     onApplied: (Component?) -> Unit = {},
 ) {
@@ -760,7 +760,7 @@ private class DiffListCellRenderer : DefaultListCellRenderer() {
 private fun fileIcon(relativePath: String) =
     FileTypeManager.getInstance().getFileTypeByFileName(relativePath).icon ?: AllIcons.Nodes.Unknown
 
-private fun buildDiffTreeRoot(entries: List<DryRunDiffEntry>): DefaultMutableTreeNode {
+internal fun buildDiffTreeRoot(entries: List<DryRunDiffEntry>): DefaultMutableTreeNode {
     val root = DefaultMutableTreeNode("Changed files")
     val directories = mutableMapOf(emptyList<String>() to root)
 
@@ -881,7 +881,7 @@ internal fun buildDryRunDiffRequests(
     report: FolderSortReport,
 ): List<SimpleDiffRequest> = buildDryRunDiffEntries(project, report).map(DryRunDiffEntry::request)
 
-private fun buildDryRunDiffEntries(
+internal fun buildDryRunDiffEntries(
     project: Project,
     report: FolderSortReport,
 ): List<DryRunDiffEntry> {

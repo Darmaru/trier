@@ -162,14 +162,12 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Dry-run apply stability improvements.</strong></p>
+            <p><strong>Marketplace discoverability and verification improvements.</strong></p>
             <ul>
-                <li>Fixed bulk dry-run <em>Apply</em> and <em>Apply Selected</em> so large apply batches run through a
-                background task with progress instead of repeatedly rebuilding the review UI on the EDT.</li>
-                <li>Fixed a write-safety error when applying dry-run changes while the dry-run review dialog is
-                open.</li>
-                <li>Cached dry-run file icons to avoid expensive file type lookups during large review list
-                updates.</li>
+                <li>Renamed the Marketplace display name to <em>Trier - Tailwind CSS Class Sorter</em> so the plugin is
+                easier to find for Tailwind CSS class sorting searches.</li>
+                <li>Expanded verification around Project View dry-run dispatch and background document sorting cleanup.</li>
+                <li>Kept the in-IDE settings page name concise as <em>Trier</em>.</li>
             </ul>
             """.trimIndent()
         ideaVersion {
@@ -216,8 +214,17 @@ val jacocoClassExcludes =
 
 tasks {
     withType<BuildSearchableOptionsTask>().configureEach {
+        // The headless IDE can initialize Settings pages outside this plugin and attempt Marketplace requests.
+        // Searchable options are not required for Trier runtime or publishing, so skip this flaky UI indexing task.
+        enabled = false
         // The headless IDE uses PathClassLoader, which makes HotSpot print a CDS warning by default.
         jvmArgs("-Xshare:off")
+    }
+    named("prepareJarSearchableOptions") {
+        enabled = false
+    }
+    named("jarSearchableOptions") {
+        enabled = false
     }
 
     test {

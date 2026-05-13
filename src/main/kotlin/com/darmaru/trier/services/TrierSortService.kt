@@ -197,15 +197,22 @@ class TrierSortService {
             return
         }
 
-        ProgressManager.getInstance().run(
-            object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
-                override fun run(indicator: ProgressIndicator) {
-                    val report = sortFolderInternal(project, root, globPattern, dryRun, indicator)
-                    notifyFolderReport(project, root, report)
-                }
-            },
-        )
+        ProgressManager.getInstance().run(createSortFolderTask(project, root, globPattern, dryRun))
     }
+
+    internal fun createSortFolderTask(
+        project: Project,
+        root: VirtualFile,
+        globPattern: String,
+        dryRun: Boolean = false,
+        onReport: (FolderSortReport) -> Unit = { report -> notifyFolderReport(project, root, report) },
+    ): Task.Backgroundable =
+        object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
+            override fun run(indicator: ProgressIndicator) {
+                val report = sortFolderInternal(project, root, globPattern, dryRun, indicator)
+                onReport(report)
+            }
+        }
 
     fun sortFile(
         project: Project,
@@ -235,28 +242,34 @@ class TrierSortService {
         file: VirtualFile,
         dryRun: Boolean = false,
     ) {
-        ProgressManager.getInstance().run(
-            object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
-                override fun run(indicator: ProgressIndicator) {
-                    val report =
-                        if (file.isDirectory) {
-                            FolderSortReport(scanned = 1, skipped = 1, dryRun = dryRun)
-                        } else {
-                            sortFiles(
-                                project,
-                                file.parent ?: file,
-                                listOf(file),
-                                scanned = 1,
-                                skipped = 0,
-                                dryRun = dryRun,
-                                indicator = indicator,
-                            )
-                        }
-                    notifyFolderReport(project, file, report)
-                }
-            },
-        )
+        ProgressManager.getInstance().run(createSortFileTask(project, file, dryRun))
     }
+
+    internal fun createSortFileTask(
+        project: Project,
+        file: VirtualFile,
+        dryRun: Boolean = false,
+        onReport: (FolderSortReport) -> Unit = { report -> notifyFolderReport(project, file, report) },
+    ): Task.Backgroundable =
+        object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
+            override fun run(indicator: ProgressIndicator) {
+                val report =
+                    if (file.isDirectory) {
+                        FolderSortReport(scanned = 1, skipped = 1, dryRun = dryRun)
+                    } else {
+                        sortFiles(
+                            project,
+                            file.parent ?: file,
+                            listOf(file),
+                            scanned = 1,
+                            skipped = 0,
+                            dryRun = dryRun,
+                            indicator = indicator,
+                        )
+                    }
+                onReport(report)
+            }
+        }
 
     private fun processText(
         project: Project,
@@ -649,48 +662,73 @@ class TrierSortService {
         val filePath = currentFilePath(document)
 
         ProgressManager.getInstance().run(
-            object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
-                override fun run(indicator: ProgressIndicator) {
-                    try {
-                        indicator.text = "Sorting Tailwind classes"
-                        val updated = computeDocumentUpdate(project, original, filePath, selectionRange)
-                        if (updated == original || project.isDisposed) {
-                            guard.release(document)
-                            return
-                        }
-
-                        ApplicationManager.getApplication().invokeLater {
-                            applyDocumentUpdate(
-                                project = project,
-                                document = document,
-                                trigger = trigger,
-                                original = original,
-                                originalModificationStamp = originalModificationStamp,
-                                updated = updated,
-                                commitPsi = commitPsi,
-                                useCommand = useCommand,
-                                saveAfterApply = saveAfterApply,
-                            )
-                        }
-                    } catch (error: ProcessCanceledException) {
-                        guard.release(document)
-                        throw error
-                    } catch (error: Exception) {
-                        guard.release(document)
-                        helperService.notifyError("Trier failed", error.message ?: error.javaClass.simpleName)
-                    }
-                }
-
-                override fun onCancel() {
-                    guard.release(document)
-                }
-
-                override fun onThrowable(error: Throwable) {
-                    guard.release(document)
-                }
-            },
+            createSortDocumentTask(
+                project = project,
+                document = document,
+                trigger = trigger,
+                original = original,
+                originalModificationStamp = originalModificationStamp,
+                filePath = filePath,
+                selectionRange = selectionRange,
+                commitPsi = commitPsi,
+                useCommand = useCommand,
+                saveAfterApply = saveAfterApply,
+            ),
         )
     }
+
+    internal fun createSortDocumentTask(
+        project: Project,
+        document: Document,
+        trigger: String,
+        original: String = document.text,
+        originalModificationStamp: Long = document.modificationStamp,
+        filePath: String? = currentFilePath(document),
+        selectionRange: TextRange?,
+        commitPsi: Boolean,
+        useCommand: Boolean,
+        saveAfterApply: Boolean,
+    ): Task.Backgroundable =
+        object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
+            override fun run(indicator: ProgressIndicator) {
+                try {
+                    indicator.text = "Sorting Tailwind classes"
+                    val updated = computeDocumentUpdate(project, original, filePath, selectionRange)
+                    if (updated == original || project.isDisposed) {
+                        guard.release(document)
+                        return
+                    }
+
+                    ApplicationManager.getApplication().invokeLater {
+                        applyDocumentUpdate(
+                            project = project,
+                            document = document,
+                            trigger = trigger,
+                            original = original,
+                            originalModificationStamp = originalModificationStamp,
+                            updated = updated,
+                            commitPsi = commitPsi,
+                            useCommand = useCommand,
+                            saveAfterApply = saveAfterApply,
+                        )
+                    }
+                } catch (error: ProcessCanceledException) {
+                    guard.release(document)
+                    throw error
+                } catch (error: Exception) {
+                    guard.release(document)
+                    helperService.notifyError("Trier failed", error.message ?: error.javaClass.simpleName)
+                }
+            }
+
+            override fun onCancel() {
+                guard.release(document)
+            }
+
+            override fun onThrowable(error: Throwable) {
+                guard.release(document)
+            }
+        }
 
     private fun sortDocumentSnapshot(
         project: Project,

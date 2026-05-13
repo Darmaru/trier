@@ -41,7 +41,7 @@ class SortTailwindInFolderAction : DumbAwareAction() {
     }
 }
 
-private class TrierFolderDialog(
+internal class TrierFolderDialog(
     private val project: Project,
     initialRootPath: String,
 ) : DialogWrapper(project) {
@@ -63,7 +63,9 @@ private class TrierFolderDialog(
 
     fun isDryRun(): Boolean = dryRunBox.isSelected
 
-    override fun createCenterPanel(): JComponent {
+    override fun createCenterPanel(): JComponent = createFolderPanel()
+
+    internal fun createFolderPanel(): JComponent {
         rootField.addActionListener {
             val descriptor =
                 FileChooserDescriptor(

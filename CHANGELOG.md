@@ -2,6 +2,17 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.2] - 2026-05-14
+
+### Changed
+
+- Renamed the Marketplace display name to `Trier - Tailwind CSS Class Sorter` for clearer Tailwind CSS search relevance while keeping the in-IDE settings page short as `Trier`.
+- Improved internal verification around Project View dry-run dispatch and background document sorting guard cleanup.
+
+### Fixed
+
+- Hardened background document sorting tests around no-op, failure, cancellation, and throwable paths so future regressions cannot leave a document stuck in Trier's execution guard.
+
 ## [0.2.1] - 2026-05-13
 
 ### Fixed
