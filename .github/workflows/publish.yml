@@ -38,6 +38,9 @@ jobs:
       - name: Check
         run: ./gradlew check --console=plain
 
+      - name: Verify plugin compatibility
+        run: ./gradlew verifyPlugin --console=plain
+
       - name: Build plugin
         run: ./gradlew buildPlugin --console=plain
 
