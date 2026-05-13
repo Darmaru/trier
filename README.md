@@ -20,18 +20,18 @@
 </p>
 
 <!-- Plugin description -->
-Trier is a JetBrains IDE plugin that keeps Tailwind CSS class lists consistently ordered while leaving the rest of your code untouched. It uses the Tailwind Labs sorting engine from `prettier-plugin-tailwindcss`, bundles the Node-side runtime inside the plugin, and integrates directly with editor actions, save hooks, reformat actions, Project View context menus, folder scans, dry-run reports, and the JetBrains diff viewer.
+Trier is a JetBrains IDE plugin for sorting Tailwind CSS classes without handing the whole file to Prettier. It uses the official Tailwind Labs sorter from `prettier-plugin-tailwindcss`, preserves surrounding code style, and gives you IDE-native workflows for editor sorting, save and reformat hooks, Project View actions, folder scans, dry-run reviews, diffs, and selective apply.
 <!-- Plugin description end -->
 
-Trier is built for teams that want reliable Tailwind ordering without handing every file to Prettier. It sorts class lists, `@apply` rules, JSX/TSX expressions, Vue bindings, and configured class helper functions while preserving the surrounding framework syntax and formatting.
+Trier is built for teams that want consistent Tailwind ordering without broad formatting churn. It sorts class lists, `@apply` rules, JSX/TSX expressions, Vue bindings, and configured class helper functions while keeping the surrounding framework syntax and formatting intact.
 
 ## Why Trier
 
 - **Focused formatting**: sort Tailwind classes without changing indentation, quotes, semicolons, wrapping, or unrelated code style.
 - **Official Tailwind ordering**: class order comes from `prettier-plugin-tailwindcss/sorter`.
 - **No project dependency required**: Trier bundles `prettier` and `prettier-plugin-tailwindcss` for its own runtime.
-- **IDE-native workflow**: run from the editor, selection, save, reformat, Project View file actions, or folder actions.
-- **Safe bulk cleanup**: scan folders with glob patterns and preview every change with dry-run reports and JetBrains diffs.
+- **IDE-native workflow**: run from the editor, selection, save, reformat, Project View actions, or folder actions.
+- **Safe bulk cleanup**: scan folders with glob patterns, preview every change, and apply all or selected dry-run results from the review dialog.
 - **Framework-aware processing**: uses PSI when available and falls back to text processing where needed.
 
 ## Core Features
@@ -53,21 +53,26 @@ Trier is built for teams that want reliable Tailwind ordering without handing ev
 
 ### Project View Actions
 
-- Sort a selected file from the Project View context menu.
-- Sort a selected folder from the Project View context menu.
+- Preview sorting for a selected file or folder from the Project View context menu.
+- Review changed files before anything is written.
 - Sort any folder from `Tools | Sort Tailwind Classes in Folder`.
 - Use configurable glob patterns for folder scans.
 - Run folder sorting in a cancellable background task.
 
 ### Dry Runs and Diffs
 
-Folder sorting supports `Dry run`, which scans and reports changes without writing files.
+Folder sorting supports `Dry run`, which scans and reports changes before writing files.
 
 - See scanned, matched, changed, unchanged, skipped, failed, and cancelled counts.
 - Inspect a single changed file directly in the JetBrains diff viewer.
-- Inspect multiple changed files through a diff list or full diff chain.
+- Review multiple changed files in a grouped tree or flat list.
+- Select one file, several files, or a directory of changed files.
+- Open diffs for the selected files.
+- Apply every remaining change with `Apply`.
+- Apply only the selected files or directories with `Apply Selected`.
+- Apply an individual change from the diff viewer.
 - Copy the dry-run report.
-- Keep original files untouched until you run without `Dry run`.
+- Applied files are removed from the review list and from the copied report.
 
 ## Supported Code Patterns
 
@@ -124,8 +129,9 @@ Recommended workflow for large projects:
 
 1. Run `Sort Tailwind Classes in Folder`.
 2. Enable `Dry run`.
-3. Review the report and diffs.
-4. Run again without `Dry run` when the preview looks correct.
+3. Review the grouped file tree and selected diffs.
+4. Apply selected directories or files in batches.
+5. Use `Apply` when the remaining preview looks correct.
 
 ## Settings
 

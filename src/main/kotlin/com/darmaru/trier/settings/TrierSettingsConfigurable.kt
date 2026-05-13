@@ -18,13 +18,13 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
-import java.awt.Color
 import java.awt.Font
 import java.nio.file.Files
 import java.nio.file.Path
@@ -36,6 +36,12 @@ import javax.swing.JPanel
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.text.JTextComponent
+
+@Volatile
+internal var testNodeRuntimeValidator: (() -> String)? = null
+
+@Volatile
+internal var testRuntimeProbe: ((com.darmaru.trier.processing.TrierResolvedSettings) -> String)? = null
 
 class TrierSettingsConfigurable : Configurable {
     private val state get() = TrierSettingsState.getInstance()
@@ -293,7 +299,12 @@ class TrierSettingsConfigurable : Configurable {
         ok: Boolean,
     ) {
         label.text = text
-        label.foreground = if (ok) Color(0x2E7D32) else Color(0xC62828)
+        label.foreground =
+            if (ok) {
+                JBColor(0x2E7D32, 0xA5D6A7)
+            } else {
+                JBColor(0xC62828, 0xEF9A9A)
+            }
     }
 
     private fun validateNodeInterpreter(): String {
@@ -412,12 +423,4 @@ class TrierSettingsConfigurable : Configurable {
         )
 
     internal fun runRuntimeTestForTest(): String = runRuntimeTest()
-
-    companion object {
-        @Volatile
-        internal var testNodeRuntimeValidator: (() -> String)? = null
-
-        @Volatile
-        internal var testRuntimeProbe: ((com.darmaru.trier.processing.TrierResolvedSettings) -> String)? = null
-    }
 }

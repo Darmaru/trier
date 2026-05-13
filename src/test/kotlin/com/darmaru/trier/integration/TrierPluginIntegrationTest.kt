@@ -162,6 +162,23 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(0, report.failed)
     }
 
+    fun testSortFolderDoubleStarGlobMatchesFileAtSelectedRoot() {
+        val root = createTempDirectory("trier-folder-selected-root-glob-test")
+        val nested = (root / "nested").createDirectories()
+        val file = nested / "component.html"
+        file.writeText("""<div class="text-center p-4 flex bg-red-500 font-bold"></div>""")
+
+        val report = TrierSortService.getInstance().sortFolder(project, nested.toString(), "**/*.{html,css}")
+
+        assertEquals("""<div class="flex bg-red-500 p-4 text-center font-bold"></div>""", file.readText())
+        assertEquals(1, report.scanned)
+        assertEquals(1, report.matched)
+        assertEquals(1, report.changed)
+        assertEquals(1, report.updated)
+        assertEquals(0, report.skipped)
+        assertEquals(0, report.failed)
+    }
+
     fun testSortFolderBlankGlobMatchesAllFiles() {
         val root = createTempDirectory("trier-folder-blank-glob-test")
         val nested = (root / "nested").createDirectories()

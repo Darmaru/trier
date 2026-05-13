@@ -75,6 +75,29 @@ class TrierDryRunReportTest : BasePlatformTestCase() {
 
         assertEquals(1, requests.size)
         assertEquals("Trier Dry Run: valid.html", requests.single().getTitle())
+        assertEquals(listOf("Original snapshot", "Sorted preview (not written)"), requests.single().contentTitles)
+    }
+
+    fun testBuildRemainingDryRunReportRemovesAppliedChangesFromReportText() {
+        val first = FolderSortChange("/tmp/project/first.html", "first.html")
+        val second = FolderSortChange("/tmp/project/second.html", "second.html")
+        val report =
+            FolderSortReport(
+                scanned = 2,
+                matched = 2,
+                changed = 2,
+                dryRun = true,
+                changes = listOf(first, second),
+            )
+
+        val remainingReport = buildRemainingDryRunReport(report, listOf(second))
+        val text = buildDryRunReportText("/tmp/project", remainingReport)
+
+        assertEquals(1, remainingReport.changed)
+        assertEquals(listOf(second), remainingReport.changes)
+        assertFalse(text.contains("first.html"))
+        assertTrue(text.contains("second.html"))
+        assertTrue(text.contains("Would update: 1"))
     }
 
     fun testApplyDryRunChangeWritesFile() {
@@ -128,5 +151,23 @@ class TrierDryRunReportTest : BasePlatformTestCase() {
             )
 
         assertEquals(DryRunApplyResult.MissingPreview, result)
+    }
+
+    fun testApplyDryRunChangeSkipsMissingFile() {
+        val file = Files.createTempFile("trier-dry-run-missing", ".html")
+        Files.delete(file)
+
+        val result =
+            applyDryRunChange(
+                project,
+                FolderSortChange(
+                    path = file.toString(),
+                    relativePath = "component.html",
+                    originalText = """<div class="p-4 flex"></div>""",
+                    sortedText = """<div class="flex p-4"></div>""",
+                ),
+            )
+
+        assertEquals(DryRunApplyResult.FileNotFound, result)
     }
 }

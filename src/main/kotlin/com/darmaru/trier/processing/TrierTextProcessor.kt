@@ -56,7 +56,7 @@ class TrierTextProcessor(
         val regex = Regex("""@apply(\s+)([^;]+)(?=;)""")
         return regex
             .findAll(text)
-            .mapNotNull { match ->
+            .map { match ->
                 SortCandidate(
                     start = match.range.first,
                     end = match.range.last + 1,
@@ -94,9 +94,8 @@ class TrierTextProcessor(
             }
             val end = findQuotedLiteralEnd(text, cursor, '`') ?: break
             val contentStart = cursor + 1
-            val contentEnd = end
-            val value = text.substring(contentStart, contentEnd)
-            replacements += SortCandidate(contentStart, contentEnd, value)
+            val value = text.substring(contentStart, end)
+            replacements += SortCandidate(contentStart, end, value)
             index = end + 1
         }
         return replacements

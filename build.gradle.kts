@@ -3,6 +3,7 @@ import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.BuildSearchableOptionsTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -106,10 +107,10 @@ intellijPlatform {
         description =
             """
             <p>
-                Trier keeps Tailwind CSS class lists consistently ordered in JetBrains IDEs while leaving the rest of
-                your code untouched.
-                It uses the Tailwind Labs sorting engine from <code>prettier-plugin-tailwindcss</code>, but applies
-                only class sorting instead of running full Prettier formatting.
+                Trier sorts Tailwind CSS classes in JetBrains IDEs without handing the whole file to Prettier.
+                It uses the official Tailwind Labs sorter from <code>prettier-plugin-tailwindcss</code>, preserves
+                surrounding code style, and fits into normal IDE workflows for editor work, save hooks, reformat hooks,
+                Project View actions, folder scans, dry-run reviews, diffs, and selective apply.
             </p>
             <p><strong>Why Trier</strong></p>
             <ul>
@@ -120,16 +121,18 @@ intellijPlatform {
                 dependencies.</li>
                 <li>IDE-native workflow for manual sorting, selected ranges, save hooks, reformat hooks, files, and
                 folders.</li>
+                <li>Safe bulk cleanup with dry-run reports, grouped changed-file review, JetBrains diffs, and apply-all
+                or apply-selected actions.</li>
             </ul>
             <p><strong>Core features</strong></p>
             <ul>
                 <li>Sort the current editor, a selected plain class list, or class candidates inside the selected
                 range.</li>
                 <li>Run automatically on Save or after the IDE's Reformat Code action.</li>
-                <li>Sort selected files and folders from the Project View context menu.</li>
+                <li>Preview selected files and folders from the Project View context menu before writing changes.</li>
                 <li>Scan folders with configurable glob patterns in a cancellable background task.</li>
-                <li>Preview bulk changes with dry-run reports, per-file diffs, and JetBrains diff chain
-                integration.</li>
+                <li>Review bulk changes with grouped or flat dry-run views, selected diffs, copied reports, and
+                selective apply.</li>
             </ul>
             <p><strong>Supported patterns</strong></p>
             <ul>
@@ -159,25 +162,29 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Dry-run review, apply, and reliability improvements.</strong></p>
+            <p><strong>Dry-run review, selective apply, and safer background sorting.</strong></p>
+            <p>
+                Trier 0.2.0 turns folder and Project View sorting into a safer preview-first workflow. You can inspect
+                changed files, open selected diffs, apply everything, or apply only selected files and directories
+                directly from the dry-run review dialog.
+            </p>
             <ul>
-                <li>Reworked Project View sorting into one <em>Sort Tailwind Classes</em> action that always opens a
-                dry-run preview for selected files or folders.</li>
-                <li>Added a grouped dry-run review dialog with file icons, flat/grouped views, per-file diff chain
-                navigation, and per-file apply support.</li>
-                <li>Added a configurable <em>Tools | Sort Tailwind Classes in Folder...</em> workflow for custom folder
-                and glob-pattern sorting.</li>
-                <li>Improved dry-run diff window ownership and apply behavior so applied files are removed from the
-                review list and diff review advances to the next remaining candidate.</li>
-                <li>Moved editor, save, and reformat sorting work to background tasks while applying results only when
-                the document has not changed.</li>
-                <li>Added Node worker response timeouts and restart handling for stuck helper processes.</li>
-                <li>Hardened folder sorting by skipping common vendor/build/cache directories, binary files, and large
+                <li>Reworked Project View sorting into one preview-first <em>Sort Tailwind Classes</em> action for
+                selected files and folders.</li>
+                <li>Added grouped and flat dry-run review views with file icons, multi-selection, selected diffs,
+                copied reports, apply-all, apply-selected, and individual diff apply.</li>
+                <li>Added <em>Tools | Sort Tailwind Classes in Folder...</em> for configurable folder, glob-pattern,
+                and dry-run workflows.</li>
+                <li>Moved editor, save, and reformat sorting to background tasks and apply results only when the
+                document still matches the processed snapshot.</li>
+                <li>Hardened folder scans by skipping common vendor/build/cache directories, binary files, and large
                 files.</li>
-                <li>Validated local Node.js runtime versions and custom attribute/function regex settings before
-                sorting.</li>
+                <li>Fixed default <code>**/...</code> glob handling so files directly inside the selected folder are
+                included in dry-run reports.</li>
+                <li>Added Node.js 20.19+ validation, custom regex validation, worker timeouts, and worker restart
+                handling.</li>
                 <li>Added pull request and branch CI with checks, plugin verification, plugin builds, and JaCoCo
-                coverage thresholds.</li>
+                coverage gates.</li>
             </ul>
             """.trimIndent()
         ideaVersion {
@@ -223,8 +230,15 @@ val jacocoClassExcludes =
     )
 
 tasks {
+    withType<BuildSearchableOptionsTask>().configureEach {
+        // The headless IDE uses PathClassLoader, which makes HotSpot print a CDS warning by default.
+        jvmArgs("-Xshare:off")
+    }
+
     test {
         useJUnit()
+        // IntelliJ test framework uses PathClassLoader, which makes HotSpot print a CDS warning by default.
+        jvmArgs("-Xshare:off")
         finalizedBy(jacocoTestReport)
 
         extensions.configure<JacocoTaskExtension> {

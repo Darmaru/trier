@@ -2,7 +2,6 @@ package com.darmaru.trier.processing
 
 import com.intellij.openapi.util.TextRange
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import org.junit.Assert.assertEquals
 
 class TrierPsiProcessorPlatformTest : BasePlatformTestCase() {
     private val settings =

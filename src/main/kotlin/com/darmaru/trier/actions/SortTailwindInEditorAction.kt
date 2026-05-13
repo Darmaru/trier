@@ -1,6 +1,7 @@
 package com.darmaru.trier.actions
 
 import com.darmaru.trier.services.TrierSortService
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -23,4 +24,6 @@ class SortTailwindInEditorAction : AnAction() {
     override fun update(event: AnActionEvent) {
         event.presentation.isEnabledAndVisible = event.project != null && event.getData(CommonDataKeys.EDITOR) != null
     }
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 }

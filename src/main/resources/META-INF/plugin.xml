@@ -15,10 +15,6 @@
                 parentId="tools"
                 instance="com.darmaru.trier.settings.TrierSettingsConfigurable"/>
         <notificationGroup id="Trier" displayType="BALLOON" isLogByDefault="true"/>
-        <applicationService serviceImplementation="com.darmaru.trier.services.TrierExecutionGuard"/>
-        <applicationService serviceImplementation="com.darmaru.trier.services.TrierNodeHelperService"/>
-        <applicationService serviceImplementation="com.darmaru.trier.services.TrierNodeWorkerService"/>
-        <applicationService serviceImplementation="com.darmaru.trier.services.TrierSortService"/>
     </extensions>
 
     <applicationListeners>

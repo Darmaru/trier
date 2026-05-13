@@ -2,32 +2,44 @@
 
 All notable changes to Trier are documented in this file.
 
-## [0.2.0] - 2026-05-12
+## [0.2.0] - 2026-05-13
+
+### Highlights
+
+- Dry-run review is now a full apply workflow: preview changed files, open selected diffs, apply everything, or apply only selected files and directories.
+- Editor, save, and reformat sorting now run in background tasks and apply results only when the document still matches the processed snapshot.
+- Folder sorting is safer for real projects, with vendor/build/cache skips, binary and large-file skips, better glob handling, and cancellable scans.
+- Runtime, settings, CI, release, and plugin verification checks were tightened for the 0.2.x release line.
 
 ### Added
 
-- Added background editor, save, and reformat sorting so Tailwind processing no longer blocks the IDE UI path.
-- Added document snapshot checks before applying background sort results, with save-triggered sorting saving the document again after applying changes.
-- Added a quick Project View dry-run action for selected files and folders, with file selections opening a diff directly and folder selections opening a changed-file review list.
-- Added a grouped dry-run review dialog with file type icons, a flat/grouped toggle, per-file diff chain navigation, and per-file apply support.
-- Added an `Apply` action to dry-run diffs so individual previewed file changes can be written without rerunning the full folder sort.
-- Added a Tools menu `Sort Tailwind Classes in Folder...` action for configurable folder, glob pattern, and dry-run workflows.
+- Added background execution for editor, save, and reformat sorting.
+- Added document snapshot checks before applying background sort results.
+- Added Project View dry-run previews for selected files and folders.
+- Added a grouped dry-run review dialog with file type icons, flat/grouped views, selected-file diff navigation, and copied reports that track remaining changes.
+- Added dry-run apply actions for all remaining changes, selected files/directories, and individual diff entries.
+- Added `Tools | Sort Tailwind Classes in Folder...` for configurable folder, glob pattern, and dry-run workflows.
 - Added Node worker response timeouts and restart handling for stuck helper processes.
-- Added local Node.js version validation requiring Node.js 20.19 or newer.
-- Added custom attribute and function regex validation in settings before values are saved.
+- Added local Node.js version validation for the required Node.js 20.19+ runtime.
+- Added settings validation for custom attribute and function regex patterns.
 - Added pull request and main-branch CI for `check`, `verifyPlugin`, and `buildPlugin`.
-- Added IntelliJ Plugin Verifier configuration for the current target IDE.
-- Added JaCoCo coverage thresholds to fail `check` on coverage regressions.
+- Added IntelliJ Plugin Verifier and JaCoCo coverage gates to the standard verification flow.
 
 ### Changed
 
 - Merged the Project View file and folder actions into one `Sort Tailwind Classes` action that always previews changes before writing.
-- Improved dry-run diff window ownership so opened diff windows stay in front of the dry-run review dialog.
-- Updated dry-run apply behavior to remove applied files from the review list and advance the diff chain to the next remaining candidate.
-- Hardened folder sorting by skipping common vendor, build, and cache directories during scans.
-- Skipped binary files and files larger than 2 MiB during folder and Project View file sorting.
-- Updated the IntelliJ Platform Gradle Plugin to 2.16.0 and enabled Gradle toolchain provisioning.
+- Reworked the dry-run review button layout so `Apply` is the primary action, with `Close`, `Copy Report`, `Open Diff`, and `Apply Selected` available from the dialog footer.
+- Enabled multi-selection in the dry-run review list and grouped tree, including selecting directories to operate on all changed files inside them.
+- Improved dry-run diff ownership, cleanup, and apply flow so applied files disappear from the review list and diff review advances to the next remaining candidate.
+- Hardened folder sorting by skipping common vendor, build, cache, binary, and large-file candidates.
+- Updated the IntelliJ Platform Gradle Plugin to 2.16.0 while keeping the target platform line on 2025.2.
 - Updated release documentation for the 0.2.0 release flow.
+- Suppressed a harmless JVM CDS warning in Gradle test runs from the IntelliJ test framework classloader.
+
+### Fixed
+
+- Fixed folder glob matching for default `**/...` patterns so files directly inside the selected folder are included.
+- Fixed dry-run reports for selected nested folders so they match the changes shown when sorting the same file directly.
 
 ## [0.1.2] - 2026-05-11
 

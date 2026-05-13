@@ -3,10 +3,6 @@ package com.darmaru.trier.settings
 import com.darmaru.trier.processing.TrierResolvedSettings
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.div
 import kotlin.io.path.writeText
@@ -17,12 +13,12 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     override fun setUp() {
         super.setUp()
         initialSettings = TrierSettingsState.getInstance().snapshot()
-        TrierSettingsConfigurable.testNodeRuntimeValidator = { "/usr/bin/node" }
+        testNodeRuntimeValidator = { "/usr/bin/node" }
     }
 
     override fun tearDown() {
-        TrierSettingsConfigurable.testNodeRuntimeValidator = null
-        TrierSettingsConfigurable.testRuntimeProbe = null
+        testNodeRuntimeValidator = null
+        testRuntimeProbe = null
         TrierSettingsState.getInstance().loadState(initialSettings)
         super.tearDown()
     }
@@ -190,7 +186,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
         view.tailwindFunctionsArea.text = "cn,clsx"
 
         var captured: TrierResolvedSettings? = null
-        TrierSettingsConfigurable.testRuntimeProbe = { settings ->
+        testRuntimeProbe = { settings ->
             captured = settings
             "ok"
         }

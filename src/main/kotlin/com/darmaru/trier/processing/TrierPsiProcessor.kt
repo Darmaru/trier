@@ -61,14 +61,6 @@ class TrierPsiProcessor(
                                     ?.takeIf { it.isNotEmpty() }
                                     ?.let(candidates::addAll)
                             }
-                            is JSLiteralExpression -> {
-                                if (hasJsLiteralTarget(element, functionPredicates, limitRange)) {
-                                    foundPsiTargetInRange = true
-                                }
-                                collectJsLiteralCandidate(element, functionPredicates)
-                                    ?.takeIf { isCandidateAllowed(it, limitRange) }
-                                    ?.let(candidates::add)
-                            }
                             is JSStringTemplateExpression -> {
                                 if (hasJsTemplateTarget(element, functionPredicates, limitRange)) {
                                     foundPsiTargetInRange = true
@@ -77,6 +69,14 @@ class TrierPsiProcessor(
                                     ?.filter { isCandidateAllowed(it, limitRange) }
                                     ?.takeIf { it.isNotEmpty() }
                                     ?.let(candidates::addAll)
+                            }
+                            is JSLiteralExpression -> {
+                                if (hasJsLiteralTarget(element, functionPredicates, limitRange)) {
+                                    foundPsiTargetInRange = true
+                                }
+                                collectJsLiteralCandidate(element, functionPredicates)
+                                    ?.takeIf { isCandidateAllowed(it, limitRange) }
+                                    ?.let(candidates::add)
                             }
                         }
                         super.visitElement(element)

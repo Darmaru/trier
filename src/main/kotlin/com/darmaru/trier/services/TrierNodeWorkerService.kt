@@ -141,7 +141,7 @@ class TrierNodeWorkerService {
                 val stopped =
                     try {
                         process.waitFor(500, TimeUnit.MILLISECONDS)
-                    } catch (error: InterruptedException) {
+                    } catch (_: InterruptedException) {
                         Thread.currentThread().interrupt()
                         false
                     }
@@ -161,7 +161,7 @@ class TrierNodeWorkerService {
                 synchronized(stderrTail) {
                     stderrTail.toString().trim()
                 }
-            return if (stderr.isBlank()) "No stderr output from Trier Node worker." else stderr
+            return stderr.ifBlank { "No stderr output from Trier Node worker." }
         }
 
         companion object {
@@ -228,7 +228,7 @@ class TrierNodeWorkerService {
 
             val values = response["values"] ?: return emptyList()
             return (values as? List<*>)
-                ?.mapNotNull { it as? String }
+                ?.filterIsInstance<String>()
                 ?: throw IllegalStateException("Trier Node worker returned invalid values payload. ${stderrMessage()}")
         }
 

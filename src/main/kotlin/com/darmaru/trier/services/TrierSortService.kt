@@ -35,6 +35,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.util.ExceptionUtil
 import java.nio.file.FileSystems
 import java.nio.file.Path
+import java.nio.file.PathMatcher
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.pathString
 
@@ -104,40 +105,6 @@ class TrierSortService {
                 originalModificationStamp = document.modificationStamp,
                 filePath = currentFilePath(document),
                 selectionRange = selectionRange,
-                commitPsi = true,
-                useCommand = true,
-                saveAfterApply = false,
-            )
-        }
-    }
-
-    fun sortDocument(
-        project: Project,
-        document: Document,
-        trigger: String,
-    ) {
-        if (!shouldRunDocumentSortSynchronously()) {
-            sortDocumentInBackground(
-                project = project,
-                document = document,
-                trigger = trigger,
-                selectionRange = null,
-                commitPsi = true,
-                useCommand = true,
-                saveAfterApply = false,
-            )
-            return
-        }
-
-        guard.guard(document) {
-            sortDocumentSnapshot(
-                project = project,
-                document = document,
-                trigger = trigger,
-                original = document.text,
-                originalModificationStamp = document.modificationStamp,
-                filePath = currentFilePath(document),
-                selectionRange = null,
                 commitPsi = true,
                 useCommand = true,
                 saveAfterApply = false,
@@ -298,6 +265,8 @@ class TrierSortService {
     ): String =
         try {
             processTextOrThrow(project, text, filePath)
+        } catch (error: ProcessCanceledException) {
+            throw error
         } catch (error: Exception) {
             helperService.notifyError("Trier failed", error.message ?: error.javaClass.simpleName)
             text
@@ -319,9 +288,9 @@ class TrierSortService {
         dryRun: Boolean,
         indicator: ProgressIndicator?,
     ): FolderSortReport {
-        val matcher =
+        val matchers =
             try {
-                FileSystems.getDefault().getPathMatcher("glob:${globPattern.ifBlank { "**/*" }}")
+                folderGlobMatchers(globPattern)
             } catch (error: Exception) {
                 return FolderSortReport(
                     failed = 1,
@@ -344,22 +313,27 @@ class TrierSortService {
                 }
             }
 
-        try {
-            indicator?.text = "Scanning files"
-            VfsUtilCore.iterateChildrenRecursively(root, scanFilter) { file ->
-                indicator?.checkCanceled()
-                if (!file.isDirectory) {
-                    scanned++
-                    val relative = root.toNioPath().relativize(file.toNioPath())
-                    if (matcher.matches(relative) || matcher.matches(Path.of(file.name))) {
-                        matchedFiles += file
-                    } else {
-                        skipped++
-                    }
-                }
-                true
+        indicator?.text = "Scanning files"
+        var cancelled = false
+        VfsUtilCore.iterateChildrenRecursively(root, scanFilter) { file ->
+            if (indicator?.isCanceled == true) {
+                cancelled = true
+                return@iterateChildrenRecursively false
             }
-        } catch (_: ProcessCanceledException) {
+
+            if (!file.isDirectory) {
+                scanned++
+                val relative = root.toNioPath().relativize(file.toNioPath())
+                if (matchesAnyGlob(relative, matchers) || matchesAnyGlob(Path.of(file.name), matchers)) {
+                    matchedFiles += file
+                } else {
+                    skipped++
+                }
+            }
+            true
+        }
+
+        if (cancelled) {
             return FolderSortReport(
                 scanned = scanned,
                 skipped = skipped,
@@ -371,6 +345,49 @@ class TrierSortService {
 
         return sortFiles(project, root, matchedFiles, scanned, skipped, dryRun, indicator, failures)
     }
+
+    private fun folderGlobMatchers(globPattern: String): List<PathMatcher> {
+        val normalized = globPattern.ifBlank { "**/*" }
+        val patterns =
+            buildList {
+                add(normalized)
+                if (normalized.startsWith("**/")) {
+                    add(normalized.removePrefix("**/"))
+                }
+            }.distinct()
+
+        return patterns.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
+    }
+
+    private fun matchesAnyGlob(
+        path: Path,
+        matchers: List<PathMatcher>,
+    ): Boolean = matchers.any { it.matches(path) }
+
+    private fun cancelledReport(
+        scanned: Int,
+        matched: Int,
+        changed: Int,
+        updated: Int,
+        unchanged: Int,
+        skipped: Int,
+        dryRun: Boolean,
+        failures: List<FolderSortFailure>,
+        changes: List<FolderSortChange>,
+    ): FolderSortReport =
+        FolderSortReport(
+            scanned = scanned,
+            matched = matched,
+            changed = changed,
+            updated = updated,
+            unchanged = unchanged,
+            skipped = skipped,
+            failed = failures.size,
+            cancelled = true,
+            dryRun = dryRun,
+            failures = failures,
+            changes = changes,
+        )
 
     private fun sortFiles(
         project: Project,
@@ -390,8 +407,21 @@ class TrierSortService {
         var skippedCount = skipped
 
         for ((index, file) in matchedFiles.withIndex()) {
+            if (indicator?.isCanceled == true) {
+                return cancelledReport(
+                    scanned = scanned,
+                    matched = matchedFiles.size,
+                    changed = changed,
+                    updated = updated,
+                    unchanged = unchanged,
+                    skipped = skippedCount,
+                    dryRun = dryRun,
+                    failures = failures,
+                    changes = changes,
+                )
+            }
+
             try {
-                indicator?.checkCanceled()
                 indicator?.text = "Sorting Tailwind classes"
                 indicator?.text2 = file.path
                 if (matchedFiles.isNotEmpty()) {
@@ -431,20 +461,8 @@ class TrierSortService {
                     file.setBinaryContent(sorted.toByteArray(file.charset))
                 }
                 updated++
-            } catch (_: ProcessCanceledException) {
-                return FolderSortReport(
-                    scanned = scanned,
-                    matched = matchedFiles.size,
-                    changed = changed,
-                    updated = updated,
-                    unchanged = unchanged,
-                    skipped = skippedCount,
-                    failed = failures.size,
-                    cancelled = true,
-                    dryRun = dryRun,
-                    failures = failures,
-                    changes = changes,
-                )
+            } catch (error: ProcessCanceledException) {
+                throw error
             } catch (error: Exception) {
                 failures +=
                     FolderSortFailure(

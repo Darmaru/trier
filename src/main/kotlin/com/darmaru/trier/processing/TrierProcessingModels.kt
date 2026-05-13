@@ -1,8 +1,6 @@
 package com.darmaru.trier.processing
 
 import com.darmaru.trier.settings.TrierSettingsState
-import java.nio.file.Path
-import kotlin.io.path.absolutePathString
 
 data class TrierResolvedSettings(
     val nodeInterpreterRef: String?,
@@ -55,8 +53,6 @@ fun TrierSettingsState.State.toResolvedSettings(): TrierResolvedSettings =
         tailwindPreserveWhitespace = tailwindPreserveWhitespace,
         tailwindPreserveDuplicates = tailwindPreserveDuplicates,
     )
-
-fun Path.absolutePath(): String = toAbsolutePath().normalize().absolutePathString()
 
 private fun splitList(raw: String): List<String> =
     raw
