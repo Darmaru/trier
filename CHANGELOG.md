@@ -4,6 +4,10 @@ All notable changes to Trier are documented in this file.
 
 ## [0.2.2] - 2026-05-14
 
+### Added
+
+- Added automatic Tailwind config and stylesheet detection when the corresponding settings fields are left blank, including Tailwind v4 CSS entrypoints that import `tailwindcss/...` modules.
+
 ### Changed
 
 - Renamed the Marketplace display name to `Trier - Tailwind CSS Class Sorter` for clearer Tailwind CSS search relevance while keeping the in-IDE settings page short as `Trier`.
@@ -12,6 +16,7 @@ All notable changes to Trier are documented in this file.
 ### Fixed
 
 - Hardened background document sorting tests around no-op, failure, cancellation, and throwable paths so future regressions cannot leave a document stuck in Trier's execution guard.
+- Reduced false-positive "document changed while Trier was sorting it" warnings after Code Reformat by delaying the reformat-triggered sort and retrying once on the latest document content.
 
 ## [0.2.1] - 2026-05-13
 

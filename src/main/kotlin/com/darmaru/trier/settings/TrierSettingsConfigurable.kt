@@ -279,7 +279,7 @@ class TrierSettingsConfigurable : Configurable {
     ) {
         val path = rawPath.trim()
         if (path.isBlank()) {
-            updateStatusLabel(statusLabel, "$label is optional", true)
+            updateStatusLabel(statusLabel, "$label will be auto-detected when possible", true)
             return
         }
         val validation = runCatching { validateOptionalPath(label, rawPath) }

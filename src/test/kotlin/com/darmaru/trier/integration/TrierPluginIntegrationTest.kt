@@ -6,6 +6,7 @@ import com.darmaru.trier.listeners.TrierActionListener
 import com.darmaru.trier.listeners.TrierSaveListener
 import com.darmaru.trier.services.TrierExecutionGuard
 import com.darmaru.trier.services.TrierSortService
+import com.darmaru.trier.services.TrierTailwindPathDetector
 import com.darmaru.trier.services.buildDryRunDiffRequests
 import com.darmaru.trier.services.buildDryRunReportText
 import com.darmaru.trier.settings.TrierSettingsState
@@ -40,6 +41,7 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
     override fun setUp() {
         super.setUp()
         initialSettings = TrierSettingsState.getInstance().snapshot()
+        TrierTailwindPathDetector.clearCachesForTests()
         TrierSortService.setTestSortOverride { _, _, values, _ ->
             values.map(::sortClassesStub)
         }
@@ -48,6 +50,7 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
     override fun tearDown() {
         TrierSortService.setTestSortOverride(null)
         TrierSortService.forceBackgroundDocumentSortForTest = false
+        TrierTailwindPathDetector.clearCachesForTests()
         TrierSettingsState.getInstance().loadState(initialSettings)
         super.tearDown()
     }
@@ -173,6 +176,42 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals("released after throwable", guard.guard(document) { "released after throwable" })
     }
 
+    fun testReformatBackgroundTaskRetriesWhenDocumentChangesBeforeApply() {
+        val original = """<div class="text-center p-4 flex"></div>"""
+        val changed = """<div class="font-bold text-center p-4 flex"></div>"""
+        val sortedChanged = """<div class="flex p-4 text-center font-bold"></div>"""
+        myFixture.configureByText("test.html", original)
+        val document = myFixture.editor.document
+        val guard = ApplicationManager.getApplication().getService(TrierExecutionGuard::class.java)
+
+        assertTrue(guard.tryEnter(document))
+        TrierSortService
+            .getInstance()
+            .createSortDocumentTask(
+                project = project,
+                document = document,
+                trigger = "Reformat",
+                original = original,
+                originalModificationStamp = document.modificationStamp,
+                selectionRange = null,
+                commitPsi = true,
+                useCommand = true,
+                saveAfterApply = false,
+                retryOnChangedDocument = true,
+            ).run(EmptyProgressIndicator())
+
+        com.intellij.openapi.command.WriteCommandAction
+            .writeCommandAction(project)
+            .run<RuntimeException> { document.setText(changed) }
+
+        PlatformTestUtil.waitWithEventsDispatching(
+            "Trier reformat retry did not apply the latest document content",
+            { document.text == sortedChanged },
+            5000,
+        )
+        assertEquals("released after retry", guard.guard(document) { "released after retry" })
+    }
+
     fun testSaveListenerSortsDocumentWhenEnabled() {
         TrierSettingsState.getInstance().update { it.sortOnSave = true }
         val file =
@@ -215,7 +254,11 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
 
         TrierActionListener().afterActionPerformed(action, testEvent(action), AnActionResult.PERFORMED)
 
-        myFixture.checkResult("""<div class="flex bg-red-500 p-4 text-center font-bold"></div>""")
+        PlatformTestUtil.waitWithEventsDispatching(
+            "Trier reformat sort did not run",
+            { myFixture.editor.document.text == """<div class="flex bg-red-500 p-4 text-center font-bold"></div>""" },
+            5000,
+        )
     }
 
     fun testReformatListenerDoesNothingWhenDisabled() {
@@ -618,6 +661,50 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertTrue(settings.tailwindPreserveDuplicates)
         assertEquals(listOf("data-classes"), settings.tailwindAttributes)
         assertEquals(listOf("cn"), settings.tailwindFunctions)
+    }
+
+    fun testSortAutoDetectsTailwindProjectPathsWhenSettingsAreBlank() {
+        TrierSettingsState.getInstance().update {
+            it.tailwindStylesheet = ""
+            it.tailwindConfig = ""
+        }
+        val root = createTempDirectory("trier-tailwind-autodetect-test")
+        val componentDir = root / "src/components"
+        val stylesheetDir = root / "src/assets/style"
+        componentDir.createDirectories()
+        stylesheetDir.createDirectories()
+        val config = root / "tailwind.config.js"
+        val stylesheet = stylesheetDir / "tailwind.css"
+        val file = componentDir / "test.html"
+        config.writeText("module.exports = {}")
+        stylesheet.writeText(
+            """
+            @layer theme, base, components, utilities;
+
+            @import "tailwindcss/theme.css" layer(theme);
+            @import "tailwindcss/preflight.css" layer(base);
+            @import "tailwindcss/utilities.css";
+
+            @plugin "@tailwindcss/typography";
+            """.trimIndent(),
+        )
+        file.writeText("""<div class="text-center p-4 flex bg-red-500 font-bold"></div>""")
+        val captured = mutableListOf<com.darmaru.trier.processing.TrierResolvedSettings>()
+        TrierSortService.setTestSortOverride { _, filePath, values, settings ->
+            assertEquals(file.toString(), filePath)
+            captured += settings
+            values.map(::sortClassesStub)
+        }
+
+        TrierSortService.getInstance().sortFolder(project, root.toString(), "**/*.html")
+
+        assertEquals(
+            """<div class="flex bg-red-500 p-4 text-center font-bold"></div>""",
+            file.readText(),
+        )
+        val settings = captured.single()
+        assertEquals(stylesheet.toString(), settings.tailwindStylesheet)
+        assertEquals(config.toString(), settings.tailwindConfig)
     }
 
     fun testManualActionSortsOnlySelection() {

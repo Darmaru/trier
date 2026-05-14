@@ -30,6 +30,7 @@ Trier is built for teams that want consistent Tailwind ordering without broad fo
 - **Focused formatting**: sort Tailwind classes without changing indentation, quotes, semicolons, wrapping, or unrelated code style.
 - **Official Tailwind ordering**: class order comes from `prettier-plugin-tailwindcss/sorter`.
 - **No project dependency required**: Trier bundles `prettier` and `prettier-plugin-tailwindcss` for its own runtime.
+- **Project-aware Tailwind options**: detects Tailwind config and stylesheet files when the settings fields are left blank.
 - **IDE-native workflow**: run from the editor, selection, save, reformat, Project View actions, or folder actions.
 - **Safe bulk cleanup**: scan folders with glob patterns, preview every change, and apply all or selected dry-run results from the review dialog.
 - **Framework-aware processing**: uses PSI when available and falls back to text processing where needed.
@@ -149,12 +150,14 @@ Open `Settings | Tools | Trier`.
 
 ### Tailwind CSS
 
-- `Stylesheet`: passed to the Tailwind sorter as `tailwindStylesheet`.
-- `Config`: passed as `tailwindConfig`.
+- `Stylesheet`: passed to the Tailwind sorter as `tailwindStylesheet`; leave blank to auto-detect a Tailwind stylesheet such as `src/app.css` or `app/globals.css`.
+- `Config`: passed as `tailwindConfig`; leave blank to auto-detect `tailwind.config.js`, `.cjs`, `.mjs`, `.ts`, `.cts`, or `.mts`.
 - `Preserve whitespace`: passed as `tailwindPreserveWhitespace`.
 - `Preserve duplicates`: passed as `tailwindPreserveDuplicates`.
 - `Attributes`: additional `tailwindAttributes`, one per line or comma-separated.
 - `Functions`: `tailwindFunctions`, one per line or comma-separated.
+
+Manual stylesheet and config paths always take precedence over auto-detected paths. The stylesheet detector looks for common Tailwind entrypoint names and CSS files containing Tailwind markers such as `@import "tailwindcss"`, `@import "tailwindcss/utilities.css"`, `@plugin "@tailwindcss/typography"`, `@tailwind utilities`, or `@config`, while skipping common vendor, build, and cache directories.
 
 The stylesheet and config file choosers open in the project root when no valid path is already selected.
 

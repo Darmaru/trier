@@ -150,7 +150,8 @@ intellijPlatform {
             <ul>
                 <li>Uses the IDE JavaScript Runtime selector for Node.js.</li>
                 <li>Requires a local Node.js 20.19+ runtime.</li>
-                <li>Supports Tailwind config and stylesheet paths.</li>
+                <li>Auto-detects Tailwind config and stylesheet paths when settings fields are left blank, while still
+                allowing explicit overrides.</li>
                 <li>Supports preserve whitespace, preserve duplicates, custom attributes, and custom functions.</li>
                 <li>Includes a runtime test button that validates Node.js, bundled runtime extraction, helper startup,
                 and a real sample sort.</li>
@@ -162,8 +163,12 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Marketplace discoverability and verification improvements.</strong></p>
+            <p><strong>Tailwind project detection, Marketplace discoverability, and verification improvements.</strong></p>
             <ul>
+                <li>Automatically detects Tailwind config and stylesheet files, including Tailwind v4 CSS entrypoints
+                that import <code>tailwindcss/...</code> modules, when the settings fields are left blank.</li>
+                <li>Reduced false-positive document-changed warnings after Code Reformat by delaying the Trier sort and
+                retrying once on the latest document content.</li>
                 <li>Renamed the Marketplace display name to <em>Trier - Tailwind CSS Class Sorter</em> so the plugin is
                 easier to find for Tailwind CSS class sorting searches.</li>
                 <li>Expanded verification around Project View dry-run dispatch and background document sorting cleanup.</li>

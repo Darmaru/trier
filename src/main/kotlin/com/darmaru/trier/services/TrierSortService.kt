@@ -13,6 +13,7 @@ import com.intellij.javascript.nodejs.interpreter.local.NodeJsLocalInterpreter
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.editor.Document
@@ -38,6 +39,8 @@ import java.nio.file.Path
 import java.nio.file.PathMatcher
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.pathString
+
+private const val REFORMAT_TRIGGER = "Reformat"
 
 data class FolderSortReport(
     val scanned: Int = 0,
@@ -81,6 +84,7 @@ class TrierSortService {
         editor: Editor,
         trigger: String,
         selectionRange: TextRange? = currentSelectionRange(editor),
+        retryOnChangedDocument: Boolean = false,
     ) {
         val document = editor.document
         if (!shouldRunDocumentSortSynchronously()) {
@@ -92,6 +96,7 @@ class TrierSortService {
                 commitPsi = true,
                 useCommand = true,
                 saveAfterApply = false,
+                retryOnChangedDocument = retryOnChangedDocument,
             )
             return
         }
@@ -108,6 +113,7 @@ class TrierSortService {
                 commitPsi = true,
                 useCommand = true,
                 saveAfterApply = false,
+                retryOnChangedDocument = retryOnChangedDocument,
             )
         }
     }
@@ -161,7 +167,23 @@ class TrierSortService {
         if (!settings.sortOnReformat) {
             return
         }
-        sortCurrentEditor(project, editor, "Reformat", selectionRange)
+
+        ApplicationManager.getApplication().invokeLater(
+            {
+                if (project.isDisposed) {
+                    return@invokeLater
+                }
+                val delayedSelectionRange = selectionRange?.takeIf { it.endOffset <= editor.document.textLength }
+                sortCurrentEditor(
+                    project = project,
+                    editor = editor,
+                    trigger = REFORMAT_TRIGGER,
+                    selectionRange = delayedSelectionRange,
+                    retryOnChangedDocument = true,
+                )
+            },
+            ModalityState.defaultModalityState(),
+        )
     }
 
     fun sortFolder(
@@ -290,7 +312,7 @@ class TrierSortService {
         text: String,
         filePath: String?,
     ): String {
-        val settings = TrierSettingsState.getInstance().snapshot().toResolvedSettings()
+        val settings = resolveTailwindProjectPaths(project, filePath)
         return processWithPsi(project, text, filePath, settings)
     }
 
@@ -620,7 +642,7 @@ class TrierSortService {
         filePath: String?,
         range: TextRange,
     ): String {
-        val settings = TrierSettingsState.getInstance().snapshot().toResolvedSettings()
+        val settings = resolveTailwindProjectPaths(project, filePath)
         val sorter = { values: List<String> -> sortClassAttributes(project, filePath, values, settings) }
         val selectionText = range.substring(text)
 
@@ -652,6 +674,7 @@ class TrierSortService {
         commitPsi: Boolean,
         useCommand: Boolean,
         saveAfterApply: Boolean,
+        retryOnChangedDocument: Boolean = false,
     ) {
         if (!guard.tryEnter(document)) {
             return
@@ -673,6 +696,7 @@ class TrierSortService {
                 commitPsi = commitPsi,
                 useCommand = useCommand,
                 saveAfterApply = saveAfterApply,
+                retryOnChangedDocument = retryOnChangedDocument,
             ),
         )
     }
@@ -688,6 +712,7 @@ class TrierSortService {
         commitPsi: Boolean,
         useCommand: Boolean,
         saveAfterApply: Boolean,
+        retryOnChangedDocument: Boolean = false,
     ): Task.Backgroundable =
         object : Task.Backgroundable(project, "Trier: Sort Tailwind Classes", true) {
             override fun run(indicator: ProgressIndicator) {
@@ -710,6 +735,8 @@ class TrierSortService {
                             commitPsi = commitPsi,
                             useCommand = useCommand,
                             saveAfterApply = saveAfterApply,
+                            selectionRange = selectionRange,
+                            retryOnChangedDocument = retryOnChangedDocument,
                         )
                     }
                 } catch (error: ProcessCanceledException) {
@@ -741,6 +768,7 @@ class TrierSortService {
         commitPsi: Boolean = true,
         useCommand: Boolean = true,
         saveAfterApply: Boolean = false,
+        retryOnChangedDocument: Boolean = false,
     ) {
         val updated = computeDocumentUpdate(project, original, filePath, selectionRange)
         if (updated != original) {
@@ -755,6 +783,8 @@ class TrierSortService {
                 useCommand = useCommand,
                 saveAfterApply = saveAfterApply,
                 releaseGuard = false,
+                selectionRange = selectionRange,
+                retryOnChangedDocument = retryOnChangedDocument,
             )
         }
     }
@@ -782,56 +812,76 @@ class TrierSortService {
         useCommand: Boolean,
         saveAfterApply: Boolean,
         releaseGuard: Boolean = true,
+        selectionRange: TextRange? = null,
+        retryOnChangedDocument: Boolean = false,
     ) {
+        var retryAfterRelease = false
         try {
             if (project.isDisposed) {
                 return
             }
 
             if (document.modificationStamp != originalModificationStamp || document.text != original) {
-                NotificationGroupManager
-                    .getInstance()
-                    .getNotificationGroup("Trier")
-                    .createNotification(
-                        "Trier skipped sorting",
-                        "The document changed while Trier was sorting it. Run sorting again to apply the latest content.",
-                        NotificationType.WARNING,
-                    ).notify(project)
-                return
-            }
-
-            val applyChange = {
-                document.setText(updated)
-                if (commitPsi) {
-                    PsiDocumentManager.getInstance(project).commitDocument(document)
+                if (retryOnChangedDocument && releaseGuard) {
+                    retryAfterRelease = true
+                } else {
+                    NotificationGroupManager
+                        .getInstance()
+                        .getNotificationGroup("Trier")
+                        .createNotification(
+                            "Trier skipped sorting",
+                            "The document changed while Trier was sorting it. Run sorting again to apply the latest content.",
+                            NotificationType.WARNING,
+                        ).notify(project)
                 }
-            }
-
-            when {
-                useCommand -> {
-                    com.intellij.openapi.command.WriteCommandAction
-                        .writeCommandAction(project)
-                        .withName("Trier Sort Tailwind Classes ($trigger)")
-                        .run<RuntimeException>(applyChange)
+            } else {
+                val applyChange = {
+                    document.setText(updated)
+                    if (commitPsi) {
+                        PsiDocumentManager.getInstance(project).commitDocument(document)
+                    }
                 }
-                ApplicationManager.getApplication().isWriteAccessAllowed -> applyChange()
-                else -> {
-                    CommandProcessor.getInstance().executeCommand(
-                        project,
-                        { ApplicationManager.getApplication().runWriteAction(applyChange) },
-                        "Trier Sort Tailwind Classes ($trigger)",
-                        null,
-                    )
-                }
-            }
 
-            if (saveAfterApply) {
-                FileDocumentManager.getInstance().saveDocument(document)
+                when {
+                    useCommand -> {
+                        com.intellij.openapi.command.WriteCommandAction
+                            .writeCommandAction(project)
+                            .withName("Trier Sort Tailwind Classes ($trigger)")
+                            .run<RuntimeException>(applyChange)
+                    }
+                    ApplicationManager.getApplication().isWriteAccessAllowed -> applyChange()
+                    else -> {
+                        CommandProcessor.getInstance().executeCommand(
+                            project,
+                            { ApplicationManager.getApplication().runWriteAction(applyChange) },
+                            "Trier Sort Tailwind Classes ($trigger)",
+                            null,
+                        )
+                    }
+                }
+
+                if (saveAfterApply) {
+                    FileDocumentManager.getInstance().saveDocument(document)
+                }
             }
         } finally {
             if (releaseGuard) {
                 guard.release(document)
             }
+        }
+
+        if (retryAfterRelease && !project.isDisposed) {
+            val retrySelectionRange = selectionRange?.takeIf { it.endOffset <= document.textLength }
+            sortDocumentInBackground(
+                project = project,
+                document = document,
+                trigger = trigger,
+                selectionRange = retrySelectionRange,
+                commitPsi = commitPsi,
+                useCommand = useCommand,
+                saveAfterApply = saveAfterApply,
+                retryOnChangedDocument = false,
+            )
         }
     }
 
@@ -880,7 +930,8 @@ class TrierSortService {
         project: Project,
         settings: TrierResolvedSettings,
     ): String {
-        val nodePath = resolveNodePath(project, settings)
+        val resolvedSettings = resolveTailwindProjectPaths(project, null, settings)
+        val nodePath = resolveNodePath(project, resolvedSettings)
         val runtimePath = helperService.bundledRuntimePath()
         val scriptPath = helperService.helperScriptPath()
         val request =
@@ -888,10 +939,10 @@ class TrierSortService {
                 moduleBase = runtimePath.absolutePathString(),
                 base = project.basePath ?: guessBasePath(),
                 filepath = null,
-                configPath = settings.tailwindConfig,
-                stylesheetPath = settings.tailwindStylesheet,
-                preserveWhitespace = settings.tailwindPreserveWhitespace,
-                preserveDuplicates = settings.tailwindPreserveDuplicates,
+                configPath = resolvedSettings.tailwindConfig,
+                stylesheetPath = resolvedSettings.tailwindStylesheet,
+                preserveWhitespace = resolvedSettings.tailwindPreserveWhitespace,
+                preserveDuplicates = resolvedSettings.tailwindPreserveDuplicates,
                 values = listOf("text-center p-4 flex"),
             )
         val sampleResult = workerService.sort(nodePath, scriptPath, request).singleOrNull().orEmpty()
@@ -899,8 +950,26 @@ class TrierSortService {
             appendLine("Node: $nodePath")
             appendLine("Helper: ${scriptPath.absolutePathString()}")
             appendLine("Bundled runtime: ${runtimePath.absolutePathString()}")
+            appendLine("Tailwind stylesheet: ${resolvedSettings.tailwindStylesheet ?: "auto-detect did not find one"}")
+            appendLine("Tailwind config: ${resolvedSettings.tailwindConfig ?: "auto-detect did not find one"}")
             append("Sample sort result: $sampleResult")
         }
+    }
+
+    private fun resolveTailwindProjectPaths(
+        project: Project,
+        filePath: String?,
+        settings: TrierResolvedSettings = TrierSettingsState.getInstance().snapshot().toResolvedSettings(),
+    ): TrierResolvedSettings {
+        if (settings.tailwindStylesheet != null && settings.tailwindConfig != null) {
+            return settings
+        }
+
+        val detectedPaths = TrierTailwindPathDetector.detect(project, filePath)
+        return settings.copy(
+            tailwindStylesheet = settings.tailwindStylesheet ?: detectedPaths.stylesheet,
+            tailwindConfig = settings.tailwindConfig ?: detectedPaths.config,
+        )
     }
 
     private fun currentFilePath(document: Document): String? = FileDocumentManager.getInstance().getFile(document)?.path
