@@ -163,16 +163,15 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Tailwind project detection, Marketplace discoverability, and verification improvements.</strong></p>
+            <p><strong>Dry-run review stability and framework support planning.</strong></p>
             <ul>
-                <li>Automatically detects Tailwind config and stylesheet files, including Tailwind v4 CSS entrypoints
-                that import <code>tailwindcss/...</code> modules, when the settings fields are left blank.</li>
-                <li>Reduced false-positive document-changed warnings after Code Reformat by delaying the Trier sort and
-                retrying once on the latest document content.</li>
-                <li>Renamed the Marketplace display name to <em>Trier - Tailwind CSS Class Sorter</em> so the plugin is
-                easier to find for Tailwind CSS class sorting searches.</li>
-                <li>Expanded verification around Project View dry-run dispatch and background document sorting cleanup.</li>
-                <li>Kept the in-IDE settings page name concise as <em>Trier</em>.</li>
+                <li>Reworked dry-run diff review around Trier-owned diff windows with previous/next navigation and an
+                Apply flow that advances through remaining files.</li>
+                <li>Moved dry-run selection, remaining-change tracking, diff navigation, and batch apply results into
+                test-covered state models.</li>
+                <li>Fixed dry-run bulk apply cancellation so files already applied before cancellation are removed from
+                the remaining review list.</li>
+                <li>Added a framework support roadmap for current coverage and future stabilization priorities.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

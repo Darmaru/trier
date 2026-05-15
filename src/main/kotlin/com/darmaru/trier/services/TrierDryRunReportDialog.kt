@@ -31,6 +31,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.ui.JBUI
+import org.jetbrains.annotations.TestOnly
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Component
@@ -264,33 +265,29 @@ private class TrierDryRunDiffDialog(
         val applyModalityState = ModalityState.stateForComponent(diffViewPanel)
         ProgressManager.getInstance().run(
             object : Task.Backgroundable(project, "Trier: Apply Dry Run Changes", true) {
-                private var batchResult = DryRunApplyBatchResult()
+                private val batchResult = DryRunApplyBatchResultCollector()
 
                 override fun run(indicator: ProgressIndicator) {
-                    batchResult = applyDryRunChanges(project, entriesToApply, indicator, applyModalityState)
+                    applyDryRunChanges(project, entriesToApply, indicator, applyModalityState, batchResult)
                 }
 
                 override fun onSuccess() {
-                    finishBackgroundApply(batchResult.appliedEntries, batchResult.failures)
+                    finishBackgroundApply(batchResult.result())
                 }
 
                 override fun onCancel() {
-                    finishBackgroundApply(batchResult.appliedEntries, batchResult.failures)
+                    finishBackgroundApply(batchResult.result())
                 }
 
                 override fun onThrowable(error: Throwable) {
-                    val failedEntry = entriesToApply.firstOrNull { it !in batchResult.appliedEntries }
+                    val currentResult = batchResult.result()
+                    val failedEntry = entriesToApply.firstOrNull { it !in currentResult.appliedEntries }
                     if (failedEntry != null) {
-                        batchResult =
-                            batchResult.copy(
-                                failures =
-                                    batchResult.failures +
-                                        failedEntry.toApplyFailure(
-                                            error.localizedMessage ?: "Unexpected apply failure",
-                                        ),
-                            )
+                        batchResult.addFailure(
+                            failedEntry.toApplyFailure(error.localizedMessage ?: "Unexpected apply failure"),
+                        )
                     }
-                    finishBackgroundApply(batchResult.appliedEntries, batchResult.failures)
+                    finishBackgroundApply(batchResult.result())
                 }
             },
         )
@@ -402,14 +399,11 @@ private class TrierDryRunDiffDialog(
         }
     }
 
-    private fun finishBackgroundApply(
-        appliedEntries: List<DryRunDiffEntry>,
-        failedEntries: List<DryRunApplyFailure>,
-    ) {
+    private fun finishBackgroundApply(batchResult: DryRunApplyBatchResult) {
         setApplyInProgress(false)
-        removeEntries(appliedEntries)
-        if (failedEntries.isNotEmpty()) {
-            showBackgroundApplyFailures(appliedEntries.size, failedEntries)
+        removeEntries(batchResult.appliedEntries)
+        if (batchResult.failures.isNotEmpty()) {
+            showBackgroundApplyFailures(batchResult.appliedEntries.size, batchResult.failures)
         }
     }
 
@@ -551,7 +545,7 @@ private class TrierDryRunDiffWindow(
     override fun createCenterPanel(): JComponent =
         JPanel(BorderLayout()).apply {
             preferredSize = Dimension(1040, 680)
-            border = JBUI.Borders.empty(0, 0, 8, 0)
+            border = JBUI.Borders.emptyBottom(8)
             add(diffPanel, BorderLayout.CENTER)
         }
 
@@ -887,15 +881,43 @@ internal data class DryRunApplyBatchResult(
     val failures: List<DryRunApplyFailure> = emptyList(),
 )
 
+internal class DryRunApplyBatchResultCollector {
+    private val appliedEntries = mutableListOf<DryRunDiffEntry>()
+    private val failures = mutableListOf<DryRunApplyFailure>()
+
+    fun addApplied(entry: DryRunDiffEntry) {
+        appliedEntries += entry
+    }
+
+    fun addFailure(failure: DryRunApplyFailure) {
+        failures += failure
+    }
+
+    fun result(): DryRunApplyBatchResult =
+        DryRunApplyBatchResult(
+            appliedEntries = appliedEntries.toList(),
+            failures = failures.toList(),
+        )
+}
+
 internal fun applyDryRunChanges(
     project: Project,
     entries: List<DryRunDiffEntry>,
     indicator: ProgressIndicator,
     modalityState: ModalityState,
 ): DryRunApplyBatchResult {
-    val appliedEntries = mutableListOf<DryRunDiffEntry>()
-    val failures = mutableListOf<DryRunApplyFailure>()
+    val collector = DryRunApplyBatchResultCollector()
+    applyDryRunChanges(project, entries, indicator, modalityState, collector)
+    return collector.result()
+}
 
+internal fun applyDryRunChanges(
+    project: Project,
+    entries: List<DryRunDiffEntry>,
+    indicator: ProgressIndicator,
+    modalityState: ModalityState,
+    collector: DryRunApplyBatchResultCollector,
+) {
     entries.forEachIndexed { index, entry ->
         indicator.checkCanceled()
         indicator.text = "Applying Trier dry-run changes"
@@ -906,17 +928,16 @@ internal fun applyDryRunChanges(
             applyDryRunChangeOnEdt(project, entry.change, modalityState)
         }.onSuccess { applyResult ->
             if (applyResult == DryRunApplyResult.Applied) {
-                appliedEntries += entry
+                collector.addApplied(entry)
             } else {
-                failures += entry.toApplyFailure(dryRunApplyResultMessage(entry.change, applyResult))
+                collector.addFailure(entry.toApplyFailure(dryRunApplyResultMessage(entry.change, applyResult)))
             }
         }.onFailure { error ->
-            failures += entry.toApplyFailure(error.localizedMessage ?: "Unexpected apply failure")
+            collector.addFailure(entry.toApplyFailure(error.localizedMessage ?: "Unexpected apply failure"))
         }
     }
 
     indicator.fraction = 1.0
-    return DryRunApplyBatchResult(appliedEntries, failures)
 }
 
 private fun DryRunDiffEntry.toApplyFailure(message: String): DryRunApplyFailure =
@@ -1075,7 +1096,18 @@ internal sealed interface DryRunApplyResult {
     data object MissingPreview : DryRunApplyResult
 }
 
+@TestOnly
+internal var dryRunApplyChangeOverride: ((Project, FolderSortChange) -> DryRunApplyResult)? = null
+
 internal fun applyDryRunChange(
+    project: Project,
+    change: FolderSortChange,
+): DryRunApplyResult {
+    dryRunApplyChangeOverride?.let { return it(project, change) }
+    return applyDryRunChangeImpl(project, change)
+}
+
+private fun applyDryRunChangeImpl(
     project: Project,
     change: FolderSortChange,
 ): DryRunApplyResult {

@@ -4,12 +4,19 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.EmptyProgressIndicator
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.swing.tree.DefaultMutableTreeNode
 
 class TrierDryRunReportTest : BasePlatformTestCase() {
+    override fun tearDown() {
+        dryRunApplyChangeOverride = null
+        super.tearDown()
+    }
+
     fun testBuildDryRunReportTextIncludesEmptyChangesAndCancelledStatus() {
         val report =
             FolderSortReport(
@@ -445,6 +452,65 @@ class TrierDryRunReportTest : BasePlatformTestCase() {
         )
         assertEquals(sortedText, appliedFile.toFile().readText())
         assertEquals("""<div class="text-center flex"></div>""", staleFile.toFile().readText())
+    }
+
+    fun testApplyDryRunChangesCollectorKeepsPartialResultsWhenCancelled() {
+        val firstFile = Files.createTempFile("trier-dry-run-batch-cancel-first", ".html")
+        val secondFile = Files.createTempFile("trier-dry-run-batch-cancel-second", ".html")
+        val originalText = """<div class="p-4 flex"></div>"""
+        val sortedText = """<div class="flex p-4"></div>"""
+        firstFile.toFile().writeText(originalText)
+        secondFile.toFile().writeText(originalText)
+        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(firstFile)
+        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(secondFile)
+        val entries =
+            buildDryRunDiffEntries(
+                project,
+                FolderSortReport(
+                    dryRun = true,
+                    changes =
+                        listOf(
+                            FolderSortChange(
+                                path = firstFile.toString(),
+                                relativePath = "first.html",
+                                originalText = originalText,
+                                sortedText = sortedText,
+                            ),
+                            FolderSortChange(
+                                path = secondFile.toString(),
+                                relativePath = "second.html",
+                                originalText = originalText,
+                                sortedText = sortedText,
+                            ),
+                        ),
+                ),
+            )
+        val collector = DryRunApplyBatchResultCollector()
+        val indicator = EmptyProgressIndicator()
+        dryRunApplyChangeOverride = { _, change ->
+            Files.writeString(Path.of(change.path), change.sortedText!!)
+            if (change.relativePath == "first.html") {
+                indicator.cancel()
+            }
+            DryRunApplyResult.Applied
+        }
+
+        try {
+            applyDryRunChanges(
+                project,
+                entries,
+                indicator,
+                ModalityState.defaultModalityState(),
+                collector,
+            )
+            fail("Expected ProcessCanceledException")
+        } catch (_: ProcessCanceledException) {
+            val result = collector.result()
+            assertEquals(listOf("first.html"), result.appliedEntries.map(DryRunDiffEntry::relativePath))
+            assertTrue(result.failures.isEmpty())
+            assertEquals(sortedText, firstFile.toFile().readText())
+            assertEquals(originalText, secondFile.toFile().readText())
+        }
     }
 
     fun testBuildDryRunApplyFailureMessageShowsAppliedCountAndTruncatesFailures() {

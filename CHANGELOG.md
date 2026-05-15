@@ -2,6 +2,21 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.3] - 2026-05-15
+
+### Added
+
+- Added a framework support roadmap that documents current support levels, known gaps, and stabilization priorities without duplicating JetBrains Tailwind CSS plugin language features.
+
+### Changed
+
+- Reworked dry-run diff review around Trier-owned diff windows with previous/next navigation, an inline `Apply` action, and predictable advancement through remaining files.
+- Moved dry-run review state, diff chain selection, diff-window navigation, and batch apply results into test-covered models.
+
+### Fixed
+
+- Fixed dry-run bulk apply cancellation so already applied files are preserved in the partial result and removed from the remaining review list.
+
 ## [0.2.2] - 2026-05-14
 
 ### Added
