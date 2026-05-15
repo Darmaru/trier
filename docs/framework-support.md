@@ -29,7 +29,7 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | HTML/XML | Supported | `class="..."`, custom attributes, editor/folder/dry-run workflows | More malformed/partial markup no-op tests. |
 | JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, helper calls | More multiline helper call and nested expression tests. |
 | CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows | More nested at-rule and malformed declaration tests. |
-| Vue SFC | Partial | Static template classes, dynamic `:class` quoted fragments, `<script setup>` helper calls, `<style>` `@apply` | Object bindings, mixed arrays/objects, directive shorthand edge cases, comments. |
+| Vue SFC | Partial | Static template classes, `:class` / `v-bind:class` quoted fragments, object keys, mixed arrays/objects, `<script setup>` helper calls, `<style>` `@apply` | Broader nested expressions and formatting preservation cases before promotion to Supported. |
 | Svelte | Best effort | Folder globs include `.svelte`; fallback may sort simple static strings | `class:active`, `class={...}`, reactive expressions, script helper calls, style blocks. |
 | Astro | Best effort | Folder globs include `.astro`; fallback may sort simple static strings | `class:list`, JSX-like expressions, frontmatter helper calls. |
 | Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments | `[class.foo]`, `[ngClass]` arrays/objects, template expressions, custom pipes. |
@@ -85,16 +85,19 @@ Target level: Supported.
 
 Test and support:
 
-- Static `class`.
-- `:class="'...'"`.
-- `:class="\`...\`"`.
-- `:class="condition ? '...' : '...'"`.
-- `:class="['...', condition && '...']"`.
-- `:class="{ '...': condition }"`.
-- Mixed arrays and objects.
-- `<script setup>` helper calls such as `cn(...)`, `clsx(...)`, and configured helpers.
-- `<style>` `@apply`.
-- Formatting preservation around comments and multiline bindings.
+- [x] Static `class`.
+- [x] `:class="'...'"`.
+- [x] `v-bind:class="'...'"`.
+- [x] `:class="\`...\`"`.
+- [x] `:class="condition ? '...' : '...'"`.
+- [x] `:class="['...', condition && '...']"`.
+- [x] `:class="{ '...': condition }"`.
+- [x] Mixed arrays and objects.
+- [x] `<script setup>` helper calls such as `cn(...)`, `clsx(...)`, and configured helpers.
+- [x] `<style>` `@apply`.
+- [x] Formatting preservation around comments and multiline bindings.
+- [x] Basic malformed/no-op coverage for dynamic bindings.
+- [ ] Broader nested expressions and advanced malformed binding no-op cases.
 
 ### Svelte
 

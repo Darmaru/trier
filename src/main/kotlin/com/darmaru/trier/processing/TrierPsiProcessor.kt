@@ -114,6 +114,9 @@ class TrierPsiProcessor(
         }
 
         val value = attribute.value ?: return null
+        if (value.contains('<')) {
+            return null
+        }
         val valueElement = attribute.valueElement ?: return null
         val absoluteValueRange = attribute.valueTextRange.shiftRight(valueElement.textRange.startOffset)
         val valueStart = absoluteValueRange.startOffset
@@ -130,6 +133,9 @@ class TrierPsiProcessor(
                 }.ifEmpty { null }
         }
 
+        if (isDynamicClassAttributeName(attribute.name)) {
+            return null
+        }
         return listOf(SortCandidate(absoluteValueRange.startOffset, absoluteValueRange.endOffset, value))
     }
 
@@ -326,6 +332,19 @@ class TrierPsiProcessor(
             while (index < text.length) {
                 val quote = text[index]
                 if (quote != '\'' && quote != '"' && quote != '`') {
+                    if (quote == '/' && index + 1 < text.length) {
+                        when (text[index + 1]) {
+                            '/' -> {
+                                index = text.indexOf('\n', index + 2).takeIf { it >= 0 } ?: text.length
+                                continue
+                            }
+                            '*' -> {
+                                val commentEnd = text.indexOf("*/", index + 2)
+                                index = if (commentEnd >= 0) commentEnd + 2 else text.length
+                                continue
+                            }
+                        }
+                    }
                     index++
                     continue
                 }

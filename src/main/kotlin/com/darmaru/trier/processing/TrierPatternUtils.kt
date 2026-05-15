@@ -1,11 +1,14 @@
 package com.darmaru.trier.processing
 
-private val DEFAULT_ATTRIBUTES = listOf("class", "className", ":class", "[ngClass]")
+private val DEFAULT_ATTRIBUTES = listOf("class", "className", ":class", "v-bind:class", "[ngClass]")
 
 fun buildAttributePredicates(customValues: List<String>): List<(String) -> Boolean> =
     (DEFAULT_ATTRIBUTES + customValues)
         .distinct()
         .map(::toNamePredicate)
+
+internal fun isDynamicClassAttributeName(name: String): Boolean =
+    name.startsWith(":") || name.startsWith("v-bind:") || name.startsWith("[")
 
 fun buildFunctionPredicates(customValues: List<String>): List<(String) -> Boolean> =
     customValues.distinct().map(::toNamePredicate)

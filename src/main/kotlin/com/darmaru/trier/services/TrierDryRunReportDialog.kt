@@ -36,6 +36,7 @@ import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Window
 import java.awt.datatransfer.StringSelection
 import java.awt.event.ActionEvent
@@ -46,6 +47,7 @@ import javax.swing.Action
 import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
 import javax.swing.Icon
+import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JList
@@ -164,7 +166,7 @@ private class TrierDryRunDiffDialog(
 
     init {
         title = "Trier Dry Run Report"
-        setOKButtonText("Apply")
+        setOKButtonText("Apply All")
         resetListModel()
         init()
         configureSelectionModes()
@@ -182,8 +184,14 @@ private class TrierDryRunDiffDialog(
         val header =
             JPanel(BorderLayout()).apply {
                 border = JBUI.Borders.emptyBottom(8)
+                val headerActions =
+                    JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
+                        isOpaque = false
+                        add(groupByBox)
+                        add(JButton(copyReportAction))
+                    }
                 add(summaryLabel, BorderLayout.CENTER)
-                add(groupByBox, BorderLayout.EAST)
+                add(headerActions, BorderLayout.EAST)
             }
 
         return JPanel(BorderLayout()).apply {
@@ -196,15 +204,14 @@ private class TrierDryRunDiffDialog(
 
     override fun createActions(): Array<Action> =
         arrayOf(
-            openDiffAction,
-            applySelectedAction,
+            closeDialogAction,
             okAction,
         )
 
     override fun createLeftSideActions(): Array<Action> =
         arrayOf(
-            closeDialogAction,
-            copyReportAction,
+            openDiffAction,
+            applySelectedAction,
         )
 
     override fun doOKAction() {

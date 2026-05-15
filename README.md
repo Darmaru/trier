@@ -269,8 +269,8 @@ Required GitHub repository secrets:
 Release flow:
 
 ```bash
-git tag v0.2.3
-git push origin v0.2.3
+git tag v0.2.4
+git push origin v0.2.4
 ```
 
 The workflow runs `check`, builds the plugin artifact, uploads the ZIP as a GitHub Actions artifact, signs the plugin when signing secrets are present, and publishes it to JetBrains Marketplace with `publishPlugin`.

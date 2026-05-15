@@ -113,6 +113,132 @@ class TrierTextProcessorTest {
     }
 
     @Test
+    fun `sorts v-bind class quoted expression fragment`() {
+        val processor = processor()
+
+        val result =
+            processor.process(
+                """<div v-bind:class="'text-center p-4 flex bg-red-500 font-bold'"></div>""",
+                settings,
+            )
+
+        assertEquals(
+            """<div v-bind:class="'flex bg-red-500 p-4 text-center font-bold'"></div>""",
+            result,
+        )
+    }
+
+    @Test
+    fun `sorts quoted fragments inside dynamic fallback attributes without rewriting expression syntax`() {
+        val processor = processor()
+
+        val result =
+            processor.process(
+                """<div [ngClass]="{ 'text-center p-4 flex bg-red-500 font-bold': active }"></div>""",
+                settings,
+            )
+
+        assertEquals(
+            """<div [ngClass]="{ 'flex bg-red-500 p-4 text-center font-bold': active }"></div>""",
+            result,
+        )
+    }
+
+    @Test
+    fun `does not sort quoted fragments inside dynamic attribute comments`() {
+        val processor = processor()
+        val input =
+            """
+            <div :class="[
+              // 'text-center p-4 flex bg-red-500 font-bold'
+              'font-bold flex p-4'
+            ]"></div>
+            """.trimIndent()
+
+        val result = processor.process(input, settings)
+
+        assertEquals(
+            """
+            <div :class="[
+              // 'text-center p-4 flex bg-red-500 font-bold'
+              'flex p-4 font-bold'
+            ]"></div>
+            """.trimIndent(),
+            result,
+        )
+    }
+
+    @Test
+    fun `leaves unsupported svelte class directive unchanged`() {
+        val processor = processor()
+        val input = """<button class:active={isActive}></button>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `leaves unsupported astro class list expression unchanged`() {
+        val processor = processor()
+        val input = """<div class:list={["text-center p-4 flex bg-red-500 font-bold"]}></div>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `leaves unsupported angular class binding unchanged`() {
+        val processor = processor()
+        val input = """<div [class.active]="isActive"></div>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `leaves unsupported blade class directive unchanged`() {
+        val processor = processor()
+        val input = """<div @class(['text-center p-4 flex bg-red-500 font-bold' => active])></div>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `malformed class attribute is no-op`() {
+        val processor = processor()
+        val input = """<div class="text-center p-4 flex bg-red-500 font-bold></div>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `malformed apply directive without semicolon is no-op`() {
+        val processor = processor()
+        val input = """.button { @apply text-center p-4 flex bg-red-500 font-bold }"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `malformed dynamic class binding is no-op`() {
+        val processor = processor()
+        val input = """<div :class="isActive ? 'text-center p-4 flex bg-red-500 font-bold"></div>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
     fun `sorts quoted string inside dynamic class attribute expression`() {
         val ranges = TrierPsiProcessor.findQuotedLiteralContentRanges("'text-center p-4 flex bg-red-500 font-bold'")
 
@@ -146,6 +272,23 @@ class TrierTextProcessorTest {
         assertEquals("""flex ${'$'}{bar} p-4""", ranges[1].substring(text))
         assertTrue(ranges[2].substring(text).startsWith("font-bold"))
         assertTrue(ranges[2].substring(text).contains("still-string"))
+    }
+
+    @Test
+    fun `quoted literal detection ignores line and block comments`() {
+        val text =
+            """
+            // 'text-center p-4 flex bg-red-500 font-bold'
+            'font-bold flex p-4'
+            /* `text-center p-4 flex bg-red-500 font-bold` */
+            "text-center p-4 flex bg-red-500 font-bold"
+            """.trimIndent()
+
+        val ranges = TrierPsiProcessor.findQuotedLiteralContentRanges(text)
+
+        assertEquals(2, ranges.size)
+        assertEquals("font-bold flex p-4", ranges[0].substring(text))
+        assertEquals("text-center p-4 flex bg-red-500 font-bold", ranges[1].substring(text))
     }
 
     @Test

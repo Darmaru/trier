@@ -2,6 +2,26 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.4] - 2026-05-16
+
+### Added
+
+- Added Vue hardening coverage for `v-bind:class`, object class bindings, mixed array/object bindings, and multiline bindings with comments.
+- Added no-op regression coverage for unsupported Svelte, Astro, Angular, and Blade/PHP class binding shapes.
+- Added malformed/no-op regression coverage for broken HTML class attributes, CSS `@apply`, and Vue dynamic class bindings.
+- Added custom attribute/function regression coverage across HTML, JSX/TSX, Vue, and fallback processing.
+- Added folder dry-run coverage for framework extension globs including Vue, Svelte, Astro, and PHP files.
+
+### Changed
+
+- Made fallback dynamic attribute processing more conservative by sorting quoted class fragments inside expression values instead of rewriting the whole attribute expression.
+- Rebalanced the dry-run review footer around selected-file actions on the left and global actions on the right, with report copying moved to the header controls.
+
+### Fixed
+
+- Ignored quoted strings inside JavaScript line and block comments while collecting dynamic class binding fragments.
+- Kept malformed dynamic class bindings as no-ops when no valid quoted class fragment can be extracted.
+
 ## [0.2.3] - 2026-05-15
 
 ### Added

@@ -37,18 +37,38 @@ class TrierTextProcessor(
         val regex = Regex("""([:@\[\]\w-]+)\s*=\s*(["'])([\s\S]*?)\2""")
         return regex
             .findAll(text)
-            .mapNotNull { match ->
+            .flatMap { match ->
                 val name = match.groupValues[1]
                 if (predicates.none { it(name) }) {
-                    return@mapNotNull null
+                    return@flatMap emptyList()
                 }
                 val value = match.groupValues[3]
-                SortCandidate(
-                    start = match.range.first,
-                    end = match.range.last + 1,
-                    originalValue = value,
-                    renderReplacement = { sorted -> "$name=${match.groupValues[2]}$sorted${match.groupValues[2]}" },
-                )
+                if (value.contains('<')) {
+                    return@flatMap emptyList()
+                }
+                val valueGroup = match.groups[3] ?: return@flatMap emptyList()
+                val valueStart = valueGroup.range.first
+                val quotedRanges = TrierPsiProcessor.findQuotedLiteralContentRanges(value)
+                if (quotedRanges.isNotEmpty()) {
+                    quotedRanges.map { localRange ->
+                        val start = valueStart + localRange.startOffset
+                        SortCandidate(
+                            start = start,
+                            end = valueStart + localRange.endOffset,
+                            originalValue = localRange.substring(value),
+                        )
+                    }
+                } else if (!isDynamicClassAttributeName(name)) {
+                    listOf(
+                        SortCandidate(
+                            start = valueStart,
+                            end = valueStart + value.length,
+                            originalValue = value,
+                        ),
+                    )
+                } else {
+                    emptyList()
+                }
             }.toList()
     }
 

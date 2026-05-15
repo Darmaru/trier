@@ -424,6 +424,53 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         )
     }
 
+    fun testSortFolderDryRunCoversFrameworkExtensionGlobsSafely() {
+        val root = createTempDirectory("trier-folder-framework-extension-dry-run-test")
+        val vueFile = root / "Component.vue"
+        val svelteFile = root / "Component.svelte"
+        val astroFile = root / "Component.astro"
+        val phpFile = root / "component.php"
+        val vueOriginal =
+            """
+            <template>
+              <div v-bind:class="'text-center p-4 flex bg-red-500 font-bold'"></div>
+            </template>
+            """.trimIndent()
+        val svelteOriginal = """<button class:active={isActive}></button>"""
+        val astroOriginal = """<div class:list={["text-center p-4 flex bg-red-500 font-bold"]}></div>"""
+        val phpOriginal = """<div @class(['text-center p-4 flex bg-red-500 font-bold' => active])></div>"""
+        vueFile.writeText(vueOriginal)
+        svelteFile.writeText(svelteOriginal)
+        astroFile.writeText(astroOriginal)
+        phpFile.writeText(phpOriginal)
+
+        val report =
+            TrierSortService
+                .getInstance()
+                .sortFolder(project, root.toString(), "**/*.{vue,svelte,astro,php}", dryRun = true)
+
+        assertEquals(vueOriginal, vueFile.readText())
+        assertEquals(svelteOriginal, svelteFile.readText())
+        assertEquals(astroOriginal, astroFile.readText())
+        assertEquals(phpOriginal, phpFile.readText())
+        assertEquals(4, report.scanned)
+        assertEquals(4, report.matched)
+        assertEquals(1, report.changed)
+        assertEquals(3, report.unchanged)
+        assertEquals(0, report.updated)
+        assertEquals(0, report.failed)
+        assertEquals("Component.vue", report.changes.single().relativePath)
+        assertEquals(vueOriginal, report.changes.single().originalText)
+        assertEquals(
+            """
+            <template>
+              <div v-bind:class="'flex bg-red-500 p-4 text-center font-bold'"></div>
+            </template>
+            """.trimIndent(),
+            report.changes.single().sortedText,
+        )
+    }
+
     fun testSortFolderReportsInvalidGlobPattern() {
         val root = createTempDirectory("trier-folder-invalid-glob-test")
         val report = TrierSortService.getInstance().sortFolder(project, root.toString(), "[", dryRun = true)
