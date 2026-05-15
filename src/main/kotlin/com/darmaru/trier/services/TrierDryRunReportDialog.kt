@@ -1,15 +1,12 @@
 package com.darmaru.trier.services
 
 import com.intellij.diff.DiffContentFactory
-import com.intellij.diff.DiffDialogHints
-import com.intellij.diff.DiffManager
+import com.intellij.diff.chains.DiffRequestChain
 import com.intellij.diff.chains.SimpleDiffRequestChain
+import com.intellij.diff.impl.CacheDiffRequestChainProcessor
+import com.intellij.diff.impl.DiffRequestProcessorListener
 import com.intellij.diff.requests.SimpleDiffRequest
-import com.intellij.diff.util.DiffUserDataKeys
 import com.intellij.icons.AllIcons
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.command.WriteCommandAction
@@ -22,7 +19,7 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
-import com.intellij.openapi.ui.WindowWrapper
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.ui.ColoredTreeCellRenderer
@@ -54,7 +51,6 @@ import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JTree
 import javax.swing.ListSelectionModel
-import javax.swing.SwingUtilities
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
@@ -70,48 +66,12 @@ internal fun showTrierDryRunReport(
     when {
         entries.isEmpty() -> TrierDryRunReportDialog(project, rootPath, report).show()
         entries.size == 1 && !forceListForChanges -> {
-            val entry = entries.single()
-            entry.attachApplyAction(project) { source ->
-                closeDiffWindow(source)
-            }
-            showDiff(project, entry.request)
+            TrierDryRunDiffWindow(project, entries, 0).show()
         }
 
         else -> TrierDryRunDiffDialog(project, rootPath, report, entries).show()
     }
 }
-
-private fun showDiff(
-    project: Project,
-    request: SimpleDiffRequest,
-    parent: Component? = null,
-) {
-    DiffManager
-        .getInstance()
-        .showDiff(project, request, nonModalDiffHints(parent))
-}
-
-private fun showDiffChain(
-    project: Project,
-    entries: List<DryRunDiffEntry>,
-    selectedIndex: Int = 0,
-    parent: Component? = null,
-) {
-    DiffManager
-        .getInstance()
-        .showDiff(
-            project,
-            SimpleDiffRequestChain(entries.map(DryRunDiffEntry::request), selectedIndex.coerceIn(entries.indices)),
-            nonModalDiffHints(parent),
-        )
-}
-
-private fun nonModalDiffHints(parent: Component?): DiffDialogHints =
-    if (parent != null) {
-        DiffDialogHints(WindowWrapper.Mode.NON_MODAL, parent)
-    } else {
-        DiffDialogHints.NON_MODAL
-    }
 
 private class TrierDryRunDiffDialog(
     private val project: Project,
@@ -124,7 +84,7 @@ private class TrierDryRunDiffDialog(
         const val LIST_VIEW = "list"
     }
 
-    private val diffEntries = entries.toMutableList()
+    private val reviewState = DryRunReviewState(entries)
     private val openedDiffWindows = mutableSetOf<Window>()
     private val summaryLabel = JBLabel(summaryText())
     private var applyInProgress = false
@@ -155,7 +115,7 @@ private class TrierDryRunDiffDialog(
         }
     private val diffListModel = DefaultListModel<DryRunDiffEntry>()
     private val diffTree =
-        Tree(DefaultTreeModel(buildDiffTreeRoot(diffEntries))).apply {
+        Tree(DefaultTreeModel(buildDiffTreeRoot(reviewState.allEntries))).apply {
             isRootVisible = false
             showsRootHandles = true
             cellRenderer = DiffTreeCellRenderer()
@@ -204,11 +164,6 @@ private class TrierDryRunDiffDialog(
     init {
         title = "Trier Dry Run Report"
         setOKButtonText("Apply")
-        diffEntries.forEach { entry ->
-            entry.attachApplyAction(project) { source ->
-                applyEntryFromDiff(entry, source)
-            }
-        }
         resetListModel()
         init()
         configureSelectionModes()
@@ -261,15 +216,8 @@ private class TrierDryRunDiffDialog(
     }
 
     private fun showDiffsFromSelection() {
-        val selectedEntries = selectedDiffEntries()
-        if (selectedEntries.isEmpty()) {
-            return
-        }
-        showDiffs(selectedEntries, 0)
-    }
-
-    private fun showDiffsFromIndex(index: Int) {
-        showDiffs(diffEntries, index)
+        val chainSelection = reviewState.diffChainSelection(selectedDiffEntries()) ?: return
+        showDiffs(chainSelection.entries, chainSelection.selectedIndex)
     }
 
     private fun showDiffs(
@@ -280,20 +228,26 @@ private class TrierDryRunDiffDialog(
             return
         }
         closeOpenedDiffWindows()
-        showDiffChain(
-            project = project,
-            entries = entries,
-            selectedIndex = selectedIndex,
-            parent = window,
-        )
-        rememberOpenedDiffWindows()
-        SwingUtilities.invokeLater {
-            rememberOpenedDiffWindows()
+        val diffWindow =
+            TrierDryRunDiffWindow(
+                project = project,
+                entries = entries,
+                selectedIndex = selectedIndex,
+                parent = window,
+                onEntryApplied = ::applyEntryFromDiff,
+            )
+        diffWindow.show()
+        diffWindow.window?.let(openedDiffWindows::add)
+    }
+
+    private fun applyEntryFromDiff(entry: DryRunDiffEntry) {
+        if (reviewState.contains(entry)) {
+            removeEntry(entry)
         }
     }
 
     private fun applyAllChanges() {
-        applyChanges(diffEntries.toList())
+        applyChanges(reviewState.allEntries)
     }
 
     private fun applySelectedChanges() {
@@ -301,7 +255,7 @@ private class TrierDryRunDiffDialog(
     }
 
     private fun applyChanges(entries: List<DryRunDiffEntry>) {
-        val entriesToApply = entries.filter { it in diffEntries }
+        val entriesToApply = entries.filter(reviewState::contains)
         if (entriesToApply.isEmpty() || applyInProgress) {
             return
         }
@@ -310,70 +264,43 @@ private class TrierDryRunDiffDialog(
         val applyModalityState = ModalityState.stateForComponent(diffViewPanel)
         ProgressManager.getInstance().run(
             object : Task.Backgroundable(project, "Trier: Apply Dry Run Changes", true) {
-                private val appliedEntries = mutableListOf<DryRunDiffEntry>()
-                private val failedEntries = mutableListOf<Pair<DryRunDiffEntry, String>>()
+                private var batchResult = DryRunApplyBatchResult()
 
                 override fun run(indicator: ProgressIndicator) {
-                    entriesToApply.forEachIndexed { index, entry ->
-                        indicator.checkCanceled()
-                        indicator.text = "Applying Trier dry-run changes"
-                        indicator.text2 = entry.relativePath
-                        indicator.fraction = index.toDouble() / entriesToApply.size.toDouble()
-
-                        val result =
-                            runCatching {
-                                applyDryRunChangeOnEdt(project, entry.change, applyModalityState)
-                            }
-                        result
-                            .onSuccess { applyResult ->
-                                if (applyResult == DryRunApplyResult.Applied) {
-                                    appliedEntries += entry
-                                } else {
-                                    failedEntries += entry to dryRunApplyResultMessage(entry, applyResult)
-                                }
-                            }.onFailure { error ->
-                                failedEntries += entry to (error.localizedMessage ?: "Unexpected apply failure")
-                            }
-                    }
-                    indicator.fraction = 1.0
+                    batchResult = applyDryRunChanges(project, entriesToApply, indicator, applyModalityState)
                 }
 
                 override fun onSuccess() {
-                    finishBackgroundApply(appliedEntries, failedEntries)
+                    finishBackgroundApply(batchResult.appliedEntries, batchResult.failures)
                 }
 
                 override fun onCancel() {
-                    finishBackgroundApply(appliedEntries, failedEntries)
+                    finishBackgroundApply(batchResult.appliedEntries, batchResult.failures)
                 }
 
                 override fun onThrowable(error: Throwable) {
-                    val failedEntry = entriesToApply.firstOrNull { it !in appliedEntries }
+                    val failedEntry = entriesToApply.firstOrNull { it !in batchResult.appliedEntries }
                     if (failedEntry != null) {
-                        failedEntries += failedEntry to (error.localizedMessage ?: "Unexpected apply failure")
+                        batchResult =
+                            batchResult.copy(
+                                failures =
+                                    batchResult.failures +
+                                        failedEntry.toApplyFailure(
+                                            error.localizedMessage ?: "Unexpected apply failure",
+                                        ),
+                            )
                     }
-                    finishBackgroundApply(appliedEntries, failedEntries)
+                    finishBackgroundApply(batchResult.appliedEntries, batchResult.failures)
                 }
             },
         )
-    }
-
-    private fun applyEntryFromDiff(
-        entry: DryRunDiffEntry,
-        source: Component?,
-    ) {
-        val nextIndex = diffEntries.indexOf(entry).takeIf { it >= 0 } ?: selectedDiffIndex()
-        closeDiffWindow(source)
-        removeEntry(entry)
-        if (diffEntries.isNotEmpty()) {
-            showDiffsFromIndex(nextIndex.coerceAtMost(diffEntries.lastIndex))
-        }
     }
 
     private fun selectedDiffIndex(): Int = selectedDiffIndexOrNull() ?: 0
 
     private fun selectedDiffIndexOrNull(): Int? {
         val entry = selectedDiffEntryOrNull() ?: return null
-        return diffEntries.indexOf(entry).takeIf { it >= 0 }
+        return reviewState.indexOf(entry)
     }
 
     private fun selectedDiffEntryOrNull(): DryRunDiffEntry? = selectedDiffEntries().firstOrNull()
@@ -389,8 +316,7 @@ private class TrierDryRunDiffDialog(
                     .orEmpty()
             }
 
-        val selectedEntrySet = selectedEntries.toSet()
-        return diffEntries.filter { it in selectedEntrySet }
+        return reviewState.entriesInOrder(selectedEntries)
     }
 
     private fun entriesInNode(node: DefaultMutableTreeNode): List<DryRunDiffEntry> {
@@ -407,18 +333,18 @@ private class TrierDryRunDiffDialog(
     }
 
     private fun selectDiffIndex(index: Int) {
-        if (diffEntries.isEmpty()) {
+        if (reviewState.isEmpty) {
             diffList.clearSelection()
             diffTree.clearSelection()
             return
         }
 
-        val safeIndex = index.coerceIn(diffEntries.indices)
-        selectDiffEntries(listOf(diffEntries[safeIndex]))
+        val safeIndex = index.coerceIn(0, reviewState.lastIndex)
+        selectDiffEntries(listOfNotNull(reviewState.entryAt(safeIndex)))
     }
 
     private fun selectDiffEntries(entries: List<DryRunDiffEntry>) {
-        val entriesToSelect = entries.filter { it in diffEntries }.ifEmpty { diffEntries.take(1) }
+        val entriesToSelect = entries.filter(reviewState::contains).ifEmpty { reviewState.allEntries.take(1) }
         if (entriesToSelect.isEmpty()) {
             diffList.clearSelection()
             diffTree.clearSelection()
@@ -427,7 +353,7 @@ private class TrierDryRunDiffDialog(
 
         diffList.clearSelection()
         entriesToSelect
-            .mapNotNull { diffEntries.indexOf(it).takeIf { index -> index >= 0 } }
+            .mapNotNull(reviewState::indexOf)
             .forEach { index ->
                 diffList.addSelectionInterval(index, index)
             }
@@ -444,44 +370,41 @@ private class TrierDryRunDiffDialog(
     }
 
     private fun removeEntry(entry: DryRunDiffEntry) {
-        val previousIndex = diffEntries.indexOf(entry).takeIf { it >= 0 } ?: selectedDiffIndex()
-        diffEntries.remove(entry)
+        val result = reviewState.removeEntry(entry, selectedDiffIndex())
         resetListModel()
         resetTreeModel()
         updateSummary()
-        if (diffEntries.isEmpty()) {
+        if (result.shouldClose) {
             updateActionStates()
             close(OK_EXIT_CODE)
         } else {
-            selectDiffIndex(previousIndex.coerceAtMost(diffEntries.lastIndex))
+            result.selectedIndex?.let(::selectDiffIndex)
             updateActionStates()
         }
     }
 
     private fun removeEntries(entries: List<DryRunDiffEntry>) {
-        val entriesToRemove = entries.filter { it in diffEntries }.toSet()
-        if (entriesToRemove.isEmpty()) {
+        val result = reviewState.removeEntries(entries, selectedDiffIndex())
+        if (!result.removed) {
             updateActionStates()
             return
         }
 
-        val previousIndex = selectedDiffIndex()
-        diffEntries.removeAll(entriesToRemove)
         resetListModel()
         resetTreeModel()
         updateSummary()
-        if (diffEntries.isEmpty()) {
+        if (result.shouldClose) {
             updateActionStates()
             close(OK_EXIT_CODE)
         } else {
-            selectDiffIndex(previousIndex.coerceAtMost(diffEntries.lastIndex))
+            result.selectedIndex?.let(::selectDiffIndex)
             updateActionStates()
         }
     }
 
     private fun finishBackgroundApply(
         appliedEntries: List<DryRunDiffEntry>,
-        failedEntries: List<Pair<DryRunDiffEntry, String>>,
+        failedEntries: List<DryRunApplyFailure>,
     ) {
         setApplyInProgress(false)
         removeEntries(appliedEntries)
@@ -492,34 +415,18 @@ private class TrierDryRunDiffDialog(
 
     private fun showBackgroundApplyFailures(
         appliedCount: Int,
-        failedEntries: List<Pair<DryRunDiffEntry, String>>,
+        failedEntries: List<DryRunApplyFailure>,
     ) {
-        val maxFailures = 5
-        val message =
-            buildString {
-                if (appliedCount > 0) {
-                    appendLine("Applied $appliedCount dry-run changes.")
-                    appendLine()
-                }
-                appendLine("Could not apply ${failedEntries.size} dry-run changes:")
-                failedEntries.take(maxFailures).forEach { (entry, message) ->
-                    appendLine("- ${entry.relativePath}: $message")
-                }
-                if (failedEntries.size > maxFailures) {
-                    appendLine("- ...and ${failedEntries.size - maxFailures} more.")
-                }
-            }.trim()
-
-        Messages.showWarningDialog(project, message, "Trier")
+        Messages.showWarningDialog(project, buildDryRunApplyFailureMessage(appliedCount, failedEntries), "Trier")
     }
 
     private fun resetListModel() {
         diffListModel.clear()
-        diffEntries.forEach(diffListModel::addElement)
+        reviewState.allEntries.forEach(diffListModel::addElement)
     }
 
     private fun resetTreeModel() {
-        diffTree.model = DefaultTreeModel(buildDiffTreeRoot(diffEntries))
+        diffTree.model = DefaultTreeModel(buildDiffTreeRoot(reviewState.allEntries))
         configureSelectionModes()
         diffTree.expandAllRows()
     }
@@ -537,9 +444,9 @@ private class TrierDryRunDiffDialog(
         val hasSelection = selectedDiffEntries().isNotEmpty()
         closeDialogAction.isEnabled = !applyInProgress
         copyReportAction.isEnabled = !applyInProgress
-        openDiffAction.isEnabled = !applyInProgress && hasSelection
+        openDiffAction.isEnabled = !applyInProgress && !reviewState.isEmpty
         applySelectedAction.isEnabled = !applyInProgress && hasSelection
-        okAction.isEnabled = !applyInProgress && diffEntries.isNotEmpty()
+        okAction.isEnabled = !applyInProgress && !reviewState.isEmpty
         groupByBox.isEnabled = !applyInProgress
         diffTree.isEnabled = !applyInProgress
         diffList.isEnabled = !applyInProgress
@@ -550,25 +457,13 @@ private class TrierDryRunDiffDialog(
         updateActionStates()
     }
 
-    private fun summaryText(): String {
-        val remaining = diffEntries.size
-        val fileWord = if (remaining == 1) "file" else "files"
-        return buildString {
-            append("Dry run has $remaining remaining $fileWord that would be updated. ")
-            append("Select files or directories to review or apply selected changes.")
-        }
-    }
+    private fun summaryText(): String = reviewState.summaryText()
 
     private fun currentReportText(): String =
         buildDryRunReportText(
             rootPath,
-            buildRemainingDryRunReport(report, diffEntries.map(DryRunDiffEntry::change)),
+            buildRemainingDryRunReport(report, reviewState.remainingChanges),
         )
-
-    private fun rememberOpenedDiffWindows() {
-        val owner = window ?: return
-        openedDiffWindows += owner.ownedWindows.filter(Window::isDisplayable)
-    }
 
     private fun closeOpenedDiffWindows() {
         openedDiffWindows
@@ -617,6 +512,170 @@ private class TrierDryRunDiffDialog(
     }
 }
 
+private class TrierDryRunDiffWindow(
+    private val project: Project,
+    entries: List<DryRunDiffEntry>,
+    selectedIndex: Int,
+    parent: Component? = null,
+    private val onEntryApplied: (DryRunDiffEntry) -> Unit = {},
+) : DialogWrapper(project, parent, false, IdeModalityType.MODELESS) {
+    private val diffState = DryRunDiffWindowState(entries, selectedIndex)
+    private val diffPanel = JPanel(BorderLayout())
+    private var diffProcessor: TrierDryRunDiffProcessor? = null
+    private val previousAction =
+        object : DialogWrapperAction("Previous") {
+            override fun doAction(event: ActionEvent?) {
+                showEntry(diffState.snapshot().currentIndex - 1)
+            }
+        }
+    private val nextAction =
+        object : DialogWrapperAction("Next") {
+            override fun doAction(event: ActionEvent?) {
+                showEntry(diffState.snapshot().currentIndex + 1)
+            }
+        }
+    private val closeAction =
+        object : DialogWrapperAction("Close") {
+            override fun doAction(event: ActionEvent?) {
+                close(CANCEL_EXIT_CODE)
+            }
+        }
+
+    init {
+        title = diffState.snapshot().title
+        setOKButtonText("Apply")
+        init()
+        rebuildDiffProcessor(diffState.snapshot().currentIndex)
+    }
+
+    override fun createCenterPanel(): JComponent =
+        JPanel(BorderLayout()).apply {
+            preferredSize = Dimension(1040, 680)
+            border = JBUI.Borders.empty(0, 0, 8, 0)
+            add(diffPanel, BorderLayout.CENTER)
+        }
+
+    override fun getPreferredFocusedComponent(): JComponent? = diffProcessor?.preferredFocusedComponent
+
+    override fun createLeftSideActions(): Array<Action> = arrayOf(previousAction, nextAction)
+
+    override fun createActions(): Array<Action> =
+        arrayOf(
+            closeAction,
+            okAction,
+        )
+
+    override fun doOKAction() {
+        applyCurrentEntry()
+    }
+
+    override fun doCancelAction() {
+        close(CANCEL_EXIT_CODE)
+    }
+
+    override fun dispose() {
+        disposeDiffProcessor()
+        super.dispose()
+    }
+
+    private fun applyCurrentEntry() {
+        val entry = diffState.snapshot().currentEntry ?: return
+        when (val result = applyDryRunChange(project, entry.change)) {
+            DryRunApplyResult.Applied -> {
+                val advance = diffState.removeCurrentEntryAfterApply() ?: return
+                onEntryApplied(advance.appliedEntry)
+                if (advance.nextIndex == null) {
+                    close(OK_EXIT_CODE)
+                } else {
+                    rebuildDiffProcessor(advance.nextIndex)
+                }
+            }
+
+            else ->
+                Messages.showWarningDialog(
+                    project,
+                    dryRunApplyResultMessage(entry.change, result),
+                    "Trier",
+                )
+        }
+    }
+
+    private fun showEntry(index: Int) {
+        if (!diffState.showEntry(index)) {
+            return
+        }
+        diffProcessor?.setCurrentRequest(index)
+        updateTitleAndActions()
+    }
+
+    private fun rebuildDiffProcessor(selectedIndex: Int) {
+        disposeDiffProcessor()
+        diffState.showEntry(selectedIndex)
+        val snapshot = diffState.snapshot()
+        val processor =
+            TrierDryRunDiffProcessor(
+                project = project,
+                requestChain =
+                    SimpleDiffRequestChain(
+                        snapshot.entries.map(DryRunDiffEntry::request),
+                        snapshot.currentIndex,
+                    ),
+                onNavigate = ::syncCurrentIndexFromProcessor,
+            )
+        processor.addListener(
+            object : DiffRequestProcessorListener {
+                override fun onViewerChanged() {
+                    syncCurrentIndexFromProcessor()
+                }
+            },
+            processor,
+        )
+        diffProcessor = processor
+        diffPanel.removeAll()
+        diffPanel.add(processor.component, BorderLayout.CENTER)
+        diffPanel.revalidate()
+        diffPanel.repaint()
+        processor.updateRequest()
+        updateTitleAndActions()
+    }
+
+    private fun disposeDiffProcessor() {
+        diffProcessor?.let { processor ->
+            if (!processor.isDisposed) {
+                Disposer.dispose(processor)
+            }
+        }
+        diffProcessor = null
+    }
+
+    private fun syncCurrentIndexFromProcessor() {
+        val activeRequest = diffProcessor?.activeRequest as? SimpleDiffRequest ?: return
+        if (diffState.syncToRequest(activeRequest)) {
+            updateTitleAndActions()
+        }
+    }
+
+    private fun updateTitleAndActions() {
+        title = diffState.snapshot().title
+        updateActionStates()
+    }
+
+    private fun updateActionStates() {
+        val snapshot = diffState.snapshot()
+        previousAction.isEnabled = snapshot.canGoPrevious
+        nextAction.isEnabled = snapshot.canGoNext
+        okAction.isEnabled = snapshot.currentEntry != null
+    }
+}
+
+private class TrierDryRunDiffProcessor(
+    project: Project,
+    requestChain: DiffRequestChain,
+    private val onNavigate: () -> Unit,
+) : CacheDiffRequestChainProcessor(project, requestChain) {
+    override fun createAfterNavigateCallback(): Runnable = Runnable(onNavigate)
+}
+
 internal data class DryRunDiffEntry(
     val relativePath: String,
     val change: FolderSortChange,
@@ -626,45 +685,265 @@ internal data class DryRunDiffEntry(
     override fun toString(): String = relativePath
 }
 
-internal fun DryRunDiffEntry.attachApplyAction(
-    project: Project,
-    onApplied: (Component?) -> Unit = {},
-) {
-    request.putUserData(
-        DiffUserDataKeys.CONTEXT_ACTIONS,
-        listOf(
-            object : AnAction("Apply", "Apply this dry-run change", AllIcons.Actions.Commit) {
-                override fun actionPerformed(event: AnActionEvent) {
-                    val source = event.inputEvent?.component ?: event.getData(PlatformCoreDataKeys.CONTEXT_COMPONENT)
-                    applyDryRunEntry(project, this@attachApplyAction) {
-                        onApplied(source)
-                    }
-                }
-            },
-        ),
-    )
-}
+internal data class DryRunReviewRemoveResult(
+    val removed: Boolean,
+    val selectedIndex: Int?,
+    val shouldClose: Boolean,
+)
 
-private fun closeDiffWindow(source: Component?) {
-    val window = source?.let(SwingUtilities::getWindowAncestor) ?: return
-    window.dispose()
-}
-
-private fun applyDryRunEntry(
-    project: Project,
-    entry: DryRunDiffEntry,
-    onApplied: () -> Unit,
+internal class DryRunReviewState(
+    entries: List<DryRunDiffEntry>,
 ) {
-    when (val result = applyDryRunChange(project, entry.change)) {
-        DryRunApplyResult.Applied -> onApplied()
-        else ->
-            Messages.showWarningDialog(
-                project,
-                dryRunApplyResultMessage(entry, result),
-                "Trier",
+    private val entries = entries.toMutableList()
+
+    val allEntries: List<DryRunDiffEntry>
+        get() = entries.toList()
+
+    val remainingChanges: List<FolderSortChange>
+        get() = entries.map(DryRunDiffEntry::change)
+
+    val isEmpty: Boolean
+        get() = entries.isEmpty()
+
+    val lastIndex: Int
+        get() = entries.lastIndex
+
+    fun contains(entry: DryRunDiffEntry): Boolean = entry in entries
+
+    fun indexOf(entry: DryRunDiffEntry): Int? = entries.indexOf(entry).takeIf { it >= 0 }
+
+    fun entryAt(index: Int): DryRunDiffEntry? = entries.getOrNull(index)
+
+    fun entriesInOrder(selectedEntries: Collection<DryRunDiffEntry>): List<DryRunDiffEntry> {
+        val selectedEntrySet = selectedEntries.toSet()
+        return entries.filter { it in selectedEntrySet }
+    }
+
+    fun diffChainSelection(selectedEntries: Collection<DryRunDiffEntry>): DryRunDiffChainSelection? =
+        buildDryRunDiffChainSelection(entries, selectedEntries.toList())
+
+    fun removeEntry(
+        entry: DryRunDiffEntry,
+        fallbackIndex: Int,
+    ): DryRunReviewRemoveResult {
+        val previousIndex = indexOf(entry) ?: fallbackIndex
+        if (!entries.remove(entry)) {
+            return DryRunReviewRemoveResult(
+                removed = false,
+                selectedIndex = selectedIndexAfterNoop(),
+                shouldClose = false,
             )
+        }
+        return removeResult(previousIndex)
+    }
+
+    fun removeEntries(
+        entriesToRemove: Collection<DryRunDiffEntry>,
+        fallbackIndex: Int,
+    ): DryRunReviewRemoveResult {
+        val selectedEntrySet = entriesToRemove.filter(::contains).toSet()
+        if (selectedEntrySet.isEmpty()) {
+            return DryRunReviewRemoveResult(
+                removed = false,
+                selectedIndex = selectedIndexAfterNoop(),
+                shouldClose = false,
+            )
+        }
+
+        entries.removeAll(selectedEntrySet)
+        return removeResult(fallbackIndex)
+    }
+
+    fun summaryText(): String {
+        val remaining = entries.size
+        val fileWord = if (remaining == 1) "file" else "files"
+        return buildString {
+            append("Dry run has $remaining remaining $fileWord that would be updated. ")
+            append("Select files or directories to review or apply selected changes.")
+        }
+    }
+
+    private fun removeResult(previousIndex: Int): DryRunReviewRemoveResult =
+        if (entries.isEmpty()) {
+            DryRunReviewRemoveResult(removed = true, selectedIndex = null, shouldClose = true)
+        } else {
+            DryRunReviewRemoveResult(
+                removed = true,
+                selectedIndex = previousIndex.coerceAtMost(entries.lastIndex),
+                shouldClose = false,
+            )
+        }
+
+    private fun selectedIndexAfterNoop(): Int? = entries.indices.firstOrNull()
+}
+
+internal data class DryRunDiffWindowSnapshot(
+    val currentEntry: DryRunDiffEntry?,
+    val currentIndex: Int,
+    val entries: List<DryRunDiffEntry>,
+    val title: String,
+    val canGoPrevious: Boolean,
+    val canGoNext: Boolean,
+)
+
+internal data class DryRunDiffApplyAdvance(
+    val appliedEntry: DryRunDiffEntry,
+    val nextIndex: Int?,
+)
+
+internal class DryRunDiffWindowState(
+    entries: List<DryRunDiffEntry>,
+    selectedIndex: Int,
+) {
+    private val entries = entries.toMutableList()
+    private var currentIndex = if (entries.isEmpty()) 0 else selectedIndex.coerceIn(entries.indices)
+
+    fun snapshot(): DryRunDiffWindowSnapshot =
+        DryRunDiffWindowSnapshot(
+            currentEntry = currentEntry(),
+            currentIndex = currentIndex,
+            entries = entries.toList(),
+            title = currentTitle(),
+            canGoPrevious = currentIndex > 0,
+            canGoNext = currentIndex < entries.lastIndex,
+        )
+
+    fun showEntry(index: Int): Boolean {
+        if (index !in entries.indices) {
+            return false
+        }
+        currentIndex = index
+        return true
+    }
+
+    fun syncToRequest(request: SimpleDiffRequest): Boolean {
+        val activeIndex = entries.indexOfFirst { it.request === request }
+        if (activeIndex < 0) {
+            return false
+        }
+        currentIndex = activeIndex
+        return true
+    }
+
+    fun removeCurrentEntryAfterApply(): DryRunDiffApplyAdvance? {
+        val appliedEntry = currentEntry() ?: return null
+        val appliedIndex = currentIndex
+        entries.removeAt(appliedIndex)
+        currentIndex = nextDryRunDiffIndexAfterRemoval(appliedIndex, entries.size) ?: 0
+        return DryRunDiffApplyAdvance(
+            appliedEntry = appliedEntry,
+            nextIndex = entries.indices.firstOrNull()?.let { currentIndex },
+        )
+    }
+
+    private fun currentEntry(): DryRunDiffEntry? = entries.getOrNull(currentIndex)
+
+    private fun currentTitle(): String {
+        val entry = currentEntry()
+        return if (entry == null) {
+            "Trier Dry Run"
+        } else {
+            "Trier Dry Run: ${entry.relativePath} (${currentIndex + 1}/${entries.size})"
+        }
     }
 }
+
+internal data class DryRunDiffChainSelection(
+    val entries: List<DryRunDiffEntry>,
+    val selectedIndex: Int,
+)
+
+internal fun buildDryRunDiffChainSelection(
+    allEntries: List<DryRunDiffEntry>,
+    selectedEntries: List<DryRunDiffEntry>,
+): DryRunDiffChainSelection? {
+    if (allEntries.isEmpty()) {
+        return null
+    }
+
+    val selectedEntrySet = selectedEntries.toSet()
+    val selectedIndex = allEntries.indexOfFirst { it in selectedEntrySet }.takeIf { it >= 0 } ?: 0
+    return DryRunDiffChainSelection(allEntries, selectedIndex)
+}
+
+internal fun nextDryRunDiffIndexAfterRemoval(
+    removedIndex: Int,
+    remainingSize: Int,
+): Int? {
+    if (remainingSize <= 0) {
+        return null
+    }
+    return removedIndex.coerceAtMost(remainingSize - 1)
+}
+
+internal data class DryRunApplyFailure(
+    val relativePath: String,
+    val path: String,
+    val message: String,
+)
+
+internal data class DryRunApplyBatchResult(
+    val appliedEntries: List<DryRunDiffEntry> = emptyList(),
+    val failures: List<DryRunApplyFailure> = emptyList(),
+)
+
+internal fun applyDryRunChanges(
+    project: Project,
+    entries: List<DryRunDiffEntry>,
+    indicator: ProgressIndicator,
+    modalityState: ModalityState,
+): DryRunApplyBatchResult {
+    val appliedEntries = mutableListOf<DryRunDiffEntry>()
+    val failures = mutableListOf<DryRunApplyFailure>()
+
+    entries.forEachIndexed { index, entry ->
+        indicator.checkCanceled()
+        indicator.text = "Applying Trier dry-run changes"
+        indicator.text2 = entry.relativePath
+        indicator.fraction = index.toDouble() / entries.size.toDouble()
+
+        runCatching {
+            applyDryRunChangeOnEdt(project, entry.change, modalityState)
+        }.onSuccess { applyResult ->
+            if (applyResult == DryRunApplyResult.Applied) {
+                appliedEntries += entry
+            } else {
+                failures += entry.toApplyFailure(dryRunApplyResultMessage(entry.change, applyResult))
+            }
+        }.onFailure { error ->
+            failures += entry.toApplyFailure(error.localizedMessage ?: "Unexpected apply failure")
+        }
+    }
+
+    indicator.fraction = 1.0
+    return DryRunApplyBatchResult(appliedEntries, failures)
+}
+
+private fun DryRunDiffEntry.toApplyFailure(message: String): DryRunApplyFailure =
+    DryRunApplyFailure(
+        relativePath = relativePath,
+        path = change.path,
+        message = message,
+    )
+
+internal fun buildDryRunApplyFailureMessage(
+    appliedCount: Int,
+    failures: List<DryRunApplyFailure>,
+    maxFailures: Int = 5,
+): String =
+    buildString {
+        if (appliedCount > 0) {
+            appendLine("Applied $appliedCount dry-run changes.")
+            appendLine()
+        }
+        appendLine("Could not apply ${failures.size} dry-run changes:")
+        failures.take(maxFailures).forEach { failure ->
+            appendLine("- ${failure.relativePath}: ${failure.message}")
+        }
+        if (failures.size > maxFailures) {
+            appendLine("- ...and ${failures.size - maxFailures} more.")
+        }
+    }.trim()
 
 private fun applyDryRunChangeOnEdt(
     project: Project,
@@ -686,17 +965,17 @@ private fun applyDryRunChangeOnEdt(
     return result.get()
 }
 
-private fun dryRunApplyResultMessage(
-    entry: DryRunDiffEntry,
+internal fun dryRunApplyResultMessage(
+    change: FolderSortChange,
     result: DryRunApplyResult,
 ): String =
     when (result) {
         DryRunApplyResult.Applied -> "Applied"
         DryRunApplyResult.FileChanged ->
             "The file changed after the dry run. Run dry run again to preview and apply the latest content."
-        DryRunApplyResult.FileNotFound -> "File not found: ${entry.change.path}"
-        DryRunApplyResult.ReadOnly -> "File is read-only: ${entry.change.path}"
-        DryRunApplyResult.MissingPreview -> "Dry-run preview is incomplete for: ${entry.change.path}"
+        DryRunApplyResult.FileNotFound -> "File not found: ${change.path}"
+        DryRunApplyResult.ReadOnly -> "File is read-only: ${change.path}"
+        DryRunApplyResult.MissingPreview -> "Dry-run preview is incomplete for: ${change.path}"
     }
 
 private data class DiffTreeDirectory(

@@ -1,13 +1,9 @@
 package com.darmaru.trier.services
 
-import com.intellij.diff.util.DiffUserDataKeys
-import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.actionSystem.ActionUiKind
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.Presentation
-import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.nio.file.Files
@@ -121,6 +117,136 @@ class TrierDryRunReportTest : BasePlatformTestCase() {
         assertEquals("home.html", (pages.getChildAt(0) as DefaultMutableTreeNode).userObject.toString())
     }
 
+    fun testBuildDryRunDiffChainSelectionKeepsAllEntriesAndStartsFromSelectedFile() {
+        val entries =
+            buildDryRunDiffEntries(
+                project,
+                FolderSortReport(
+                    dryRun = true,
+                    changes =
+                        listOf(
+                            FolderSortChange(
+                                path = "/tmp/project/first.html",
+                                relativePath = "first.html",
+                                originalText = """<div class="p-4 flex"></div>""",
+                                sortedText = """<div class="flex p-4"></div>""",
+                            ),
+                            FolderSortChange(
+                                path = "/tmp/project/second.html",
+                                relativePath = "second.html",
+                                originalText = """<div class="p-2 flex"></div>""",
+                                sortedText = """<div class="flex p-2"></div>""",
+                            ),
+                        ),
+                ),
+            )
+
+        val selection = buildDryRunDiffChainSelection(entries, listOf(entries[1]))!!
+
+        assertEquals(entries, selection.entries)
+        assertEquals(1, selection.selectedIndex)
+    }
+
+    fun testBuildDryRunDiffChainSelectionStartsFromFirstFileWhenNothingIsSelected() {
+        val entries =
+            buildDryRunDiffEntries(
+                project,
+                FolderSortReport(
+                    dryRun = true,
+                    changes =
+                        listOf(
+                            FolderSortChange(
+                                path = "/tmp/project/first.html",
+                                relativePath = "first.html",
+                                originalText = """<div class="p-4 flex"></div>""",
+                                sortedText = """<div class="flex p-4"></div>""",
+                            ),
+                            FolderSortChange(
+                                path = "/tmp/project/second.html",
+                                relativePath = "second.html",
+                                originalText = """<div class="p-2 flex"></div>""",
+                                sortedText = """<div class="flex p-2"></div>""",
+                            ),
+                        ),
+                ),
+            )
+
+        val selection = buildDryRunDiffChainSelection(entries, emptyList())!!
+
+        assertEquals(entries, selection.entries)
+        assertEquals(0, selection.selectedIndex)
+    }
+
+    fun testNextDryRunDiffIndexAfterRemovalStaysAtSamePositionWhenNextFileExists() {
+        assertEquals(1, nextDryRunDiffIndexAfterRemoval(removedIndex = 1, remainingSize = 2))
+    }
+
+    fun testNextDryRunDiffIndexAfterRemovalMovesToPreviousPositionAfterLastFile() {
+        assertEquals(1, nextDryRunDiffIndexAfterRemoval(removedIndex = 2, remainingSize = 2))
+    }
+
+    fun testNextDryRunDiffIndexAfterRemovalReturnsNullWhenNoFilesRemain() {
+        assertNull(nextDryRunDiffIndexAfterRemoval(removedIndex = 0, remainingSize = 0))
+    }
+
+    fun testDryRunReviewStateRemovesEntryAndSelectsNextRemainingEntry() {
+        val entries = buildEntries("first.html", "second.html", "third.html")
+        val state = DryRunReviewState(entries)
+
+        val result = state.removeEntry(entries[1], fallbackIndex = 1)
+
+        assertTrue(result.removed)
+        assertFalse(result.shouldClose)
+        assertEquals(1, result.selectedIndex)
+        assertEquals(listOf("first.html", "third.html"), state.allEntries.map(DryRunDiffEntry::relativePath))
+    }
+
+    fun testDryRunReviewStateClosesWhenLastEntryIsRemoved() {
+        val entries = buildEntries("only.html")
+        val state = DryRunReviewState(entries)
+
+        val result = state.removeEntry(entries.single(), fallbackIndex = 0)
+
+        assertTrue(result.removed)
+        assertTrue(result.shouldClose)
+        assertNull(result.selectedIndex)
+        assertTrue(state.isEmpty)
+    }
+
+    fun testDryRunDiffWindowStateRemovesAppliedEntryAndAdvancesToNextEntry() {
+        val entries = buildEntries("first.html", "second.html", "third.html")
+        val state = DryRunDiffWindowState(entries, selectedIndex = 1)
+
+        val advance = state.removeCurrentEntryAfterApply()!!
+
+        assertEquals("second.html", advance.appliedEntry.relativePath)
+        assertEquals(1, advance.nextIndex)
+        assertEquals("third.html", state.snapshot().currentEntry!!.relativePath)
+        assertEquals("Trier Dry Run: third.html (2/2)", state.snapshot().title)
+    }
+
+    fun testDryRunDiffWindowStateClosesWhenLastEntryIsApplied() {
+        val entries = buildEntries("only.html")
+        val state = DryRunDiffWindowState(entries, selectedIndex = 0)
+
+        val advance = state.removeCurrentEntryAfterApply()!!
+
+        assertEquals("only.html", advance.appliedEntry.relativePath)
+        assertNull(advance.nextIndex)
+        assertNull(state.snapshot().currentEntry)
+        assertEquals("Trier Dry Run", state.snapshot().title)
+    }
+
+    fun testDryRunDiffWindowStateSyncsCurrentIndexToActiveRequest() {
+        val entries = buildEntries("first.html", "second.html")
+        val state = DryRunDiffWindowState(entries, selectedIndex = 0)
+
+        assertTrue(state.syncToRequest(entries[1].request))
+
+        assertEquals(1, state.snapshot().currentIndex)
+        assertEquals("second.html", state.snapshot().currentEntry!!.relativePath)
+    }
+
     fun testBuildRemainingDryRunReportRemovesAppliedChangesFromReportText() {
         val first = FolderSortChange("/tmp/project/first.html", "first.html")
         val second = FolderSortChange("/tmp/project/second.html", "second.html")
@@ -183,48 +309,6 @@ class TrierDryRunReportTest : BasePlatformTestCase() {
 
         assertEquals(DryRunApplyResult.Applied, result)
         assertEquals(sortedText, document.text)
-        assertEquals(sortedText, file.toFile().readText())
-    }
-
-    fun testAttachedDiffApplyActionAppliesDryRunEntry() {
-        val file = Files.createTempFile("trier-dry-run-diff-action", ".html")
-        val originalText = """<div class="p-4 flex"></div>"""
-        val sortedText = """<div class="flex p-4"></div>"""
-        file.toFile().writeText(originalText)
-        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(file)
-        val entry =
-            buildDryRunDiffEntries(
-                project,
-                FolderSortReport(
-                    dryRun = true,
-                    changes =
-                        listOf(
-                            FolderSortChange(
-                                path = file.toString(),
-                                relativePath = "component.html",
-                                originalText = originalText,
-                                sortedText = sortedText,
-                            ),
-                        ),
-                ),
-            ).single()
-        var applied = false
-        entry.attachApplyAction(project) {
-            applied = true
-        }
-        val action = entry.request.getUserData(DiffUserDataKeys.CONTEXT_ACTIONS)!!.single()
-
-        action.actionPerformed(
-            AnActionEvent.createEvent(
-                SimpleDataContext.EMPTY_CONTEXT,
-                Presentation(),
-                ActionPlaces.UNKNOWN,
-                ActionUiKind.TOOLBAR,
-                null,
-            ),
-        )
-
-        assertTrue(applied)
         assertEquals(sortedText, file.toFile().readText())
     }
 
@@ -309,4 +393,94 @@ class TrierDryRunReportTest : BasePlatformTestCase() {
 
         assertEquals(DryRunApplyResult.FileNotFound, result)
     }
+
+    fun testApplyDryRunChangesReturnsAppliedEntriesAndFailures() {
+        val appliedFile = Files.createTempFile("trier-dry-run-batch-applied", ".html")
+        val staleFile = Files.createTempFile("trier-dry-run-batch-stale", ".html")
+        val originalText = """<div class="p-4 flex"></div>"""
+        val sortedText = """<div class="flex p-4"></div>"""
+        appliedFile.toFile().writeText(originalText)
+        staleFile.toFile().writeText("""<div class="text-center flex"></div>""")
+        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(appliedFile)
+        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(staleFile)
+        val entries =
+            buildDryRunDiffEntries(
+                project,
+                FolderSortReport(
+                    dryRun = true,
+                    changes =
+                        listOf(
+                            FolderSortChange(
+                                path = appliedFile.toString(),
+                                relativePath = "applied.html",
+                                originalText = originalText,
+                                sortedText = sortedText,
+                            ),
+                            FolderSortChange(
+                                path = staleFile.toString(),
+                                relativePath = "stale.html",
+                                originalText = originalText,
+                                sortedText = sortedText,
+                            ),
+                        ),
+                ),
+            )
+
+        val result =
+            applyDryRunChanges(
+                project,
+                entries,
+                EmptyProgressIndicator(),
+                ModalityState.defaultModalityState(),
+            )
+
+        assertEquals(listOf("applied.html"), result.appliedEntries.map(DryRunDiffEntry::relativePath))
+        assertEquals(1, result.failures.size)
+        assertEquals("stale.html", result.failures.single().relativePath)
+        assertTrue(
+            result.failures
+                .single()
+                .message
+                .contains("The file changed after the dry run"),
+        )
+        assertEquals(sortedText, appliedFile.toFile().readText())
+        assertEquals("""<div class="text-center flex"></div>""", staleFile.toFile().readText())
+    }
+
+    fun testBuildDryRunApplyFailureMessageShowsAppliedCountAndTruncatesFailures() {
+        val failures =
+            (1..6).map { index ->
+                DryRunApplyFailure(
+                    relativePath = "file-$index.html",
+                    path = "/tmp/project/file-$index.html",
+                    message = "Failure $index",
+                )
+            }
+
+        val message = buildDryRunApplyFailureMessage(appliedCount = 2, failures = failures)
+
+        assertTrue(message.contains("Applied 2 dry-run changes."))
+        assertTrue(message.contains("Could not apply 6 dry-run changes:"))
+        assertTrue(message.contains("- file-1.html: Failure 1"))
+        assertTrue(message.contains("- file-5.html: Failure 5"))
+        assertFalse(message.contains("- file-6.html: Failure 6"))
+        assertTrue(message.contains("- ...and 1 more."))
+    }
+
+    private fun buildEntries(vararg relativePaths: String): List<DryRunDiffEntry> =
+        buildDryRunDiffEntries(
+            project,
+            FolderSortReport(
+                dryRun = true,
+                changes =
+                    relativePaths.map { relativePath ->
+                        FolderSortChange(
+                            path = "/tmp/project/$relativePath",
+                            relativePath = relativePath,
+                            originalText = """<div class="p-4 flex"></div>""",
+                            sortedText = """<div class="flex p-4"></div>""",
+                        )
+                    },
+            ),
+        )
 }

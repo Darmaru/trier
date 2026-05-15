@@ -175,6 +175,8 @@ Vue support is enabled through the optional bundled dependency `org.jetbrains.pl
 
 Astro, Svelte, and PHP files can be included in folder globs and may work through the fallback text processor, but they are best-effort in the current test matrix.
 
+See [Framework Support Roadmap](docs/framework-support.md) for the working support matrix and planned stabilization steps.
+
 ## Examples
 
 HTML:
