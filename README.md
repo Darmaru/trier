@@ -140,7 +140,7 @@ Open `Settings | Tools | Trier`.
 
 ### Runtime
 
-- `Node interpreter`: uses the IDE JavaScript Runtime selector.
+- `Node interpreter`: uses the IDE JavaScript Runtime selector, including local and Docker/remote runtimes supported by the IDE.
 - `Test Trier runtime`: validates Node.js resolution, bundled runtime extraction, helper script startup, and a real sample sort.
 
 ### Triggers
@@ -165,7 +165,7 @@ The stylesheet and config file choosers open in the project root when no valid p
 
 Trier bundles the Node-side sorter dependencies used by the plugin. Your project does not need to install `prettier` or `prettier-plugin-tailwindcss`.
 
-A local Node.js runtime is still required because the Tailwind sorter runs in Node.js. The bundled Tailwind sorter currently requires Node.js `20.19` or newer. Remote Node interpreters are not supported yet.
+Node.js is still required because the Tailwind sorter runs in Node.js. The bundled Tailwind sorter currently requires Node.js `20.19` or newer. Trier supports local and Docker/remote Node.js runtimes configured through the IDE JavaScript Runtime selector.
 
 ## Framework Coverage
 
@@ -269,8 +269,8 @@ Required GitHub repository secrets:
 Release flow:
 
 ```bash
-git tag v0.2.4
-git push origin v0.2.4
+git tag v0.2.5
+git push origin v0.2.5
 ```
 
 The workflow runs `check`, builds the plugin artifact, uploads the ZIP as a GitHub Actions artifact, signs the plugin when signing secrets are present, and publishes it to JetBrains Marketplace with `publishPlugin`.

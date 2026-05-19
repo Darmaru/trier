@@ -1,6 +1,7 @@
 package com.darmaru.trier.settings
 
 import com.darmaru.trier.processing.TrierResolvedSettings
+import com.darmaru.trier.services.TrierRuntimeReport
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlin.io.path.createTempDirectory
@@ -188,12 +189,18 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
         var captured: TrierResolvedSettings? = null
         testRuntimeProbe = { settings ->
             captured = settings
-            "ok"
+            TrierRuntimeReport(
+                node = "/usr/bin/node",
+                bundledRuntime = "/tmp/trier-node-runtime",
+                tailwindStylesheet = settings.tailwindStylesheet,
+                tailwindConfig = settings.tailwindConfig,
+                sampleSortResult = "ok",
+            )
         }
 
         val result = configurable.runRuntimeTestForTest()
 
-        assertEquals("ok", result)
+        assertEquals("ok", result.sampleSortResult)
         val resolved = checkNotNull(captured)
         assertEquals(stylesheet.toString(), resolved.tailwindStylesheet)
         assertEquals(config.toString(), resolved.tailwindConfig)
@@ -206,6 +213,24 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
         assertEquals("Config looks valid", view.configStatusLabel.text)
 
         configurable.disposeUIResources()
+    }
+
+    fun testRuntimeReportHtmlRendersHeadingsInBold() {
+        val html =
+            buildRuntimeReportHtml(
+                TrierRuntimeReport(
+                    node = "Docker node:22",
+                    bundledRuntime = "/tmp/trier-node-runtime",
+                    tailwindStylesheet = null,
+                    tailwindConfig = null,
+                    sampleSortResult = "flex p-4 text-center",
+                ),
+            )
+
+        assertTrue(html.contains("<strong>Node:</strong>"))
+        assertTrue(html.contains("<strong>Sample sort result:</strong>"))
+        assertTrue(html.contains("Docker node:22"))
+        assertTrue(html.contains("flex p-4 text-center"))
     }
 
     fun testFileChooserFallsBackToProjectRootWhenPathIsBlank() {

@@ -3,6 +3,7 @@ package com.darmaru.trier.settings
 import com.darmaru.trier.processing.toResolvedSettings
 import com.darmaru.trier.processing.validateNamePatterns
 import com.darmaru.trier.services.TrierNodeRuntimeValidator
+import com.darmaru.trier.services.TrierRuntimeReport
 import com.darmaru.trier.services.TrierSortService
 import com.intellij.execution.ExecutionException
 import com.intellij.javascript.nodejs.interpreter.NodeJsInterpreterField
@@ -13,8 +14,12 @@ import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ConfigurationException
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -25,13 +30,17 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import java.awt.BorderLayout
+import java.awt.Dimension
 import java.awt.Font
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.AbstractButton
+import javax.swing.Action
 import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
+import javax.swing.JEditorPane
 import javax.swing.JPanel
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -41,7 +50,7 @@ import javax.swing.text.JTextComponent
 internal var testNodeRuntimeValidator: (() -> String)? = null
 
 @Volatile
-internal var testRuntimeProbe: ((com.darmaru.trier.processing.TrierResolvedSettings) -> String)? = null
+internal var testRuntimeProbe: ((com.darmaru.trier.processing.TrierResolvedSettings) -> TrierRuntimeReport)? = null
 
 class TrierSettingsConfigurable : Configurable {
     private val state get() = TrierSettingsState.getInstance()
@@ -61,6 +70,7 @@ class TrierSettingsConfigurable : Configurable {
     private val tailwindFunctionsArea = JBTextArea(4, 60)
     private val testRuntimeButton = JButton("Test Trier runtime")
     private val nodeStatusLabel = createStatusLabel()
+    private var runtimeTestInProgress = false
     private val stylesheetStatusLabel = createStatusLabel()
     private val configStatusLabel = createStatusLabel()
 
@@ -234,18 +244,43 @@ class TrierSettingsConfigurable : Configurable {
     private fun selectedInterpreterRef(): String = nodeInterpreterField?.getInterpreterRef()?.referenceName.orEmpty()
 
     private fun testTrierRuntime() {
-        try {
-            val details = runRuntimeTest()
-            updateValidationStatus()
-            Messages.showInfoMessage(
-                project,
-                details,
-                "Trier Runtime",
-            )
-        } catch (error: ConfigurationException) {
-            updateValidationStatus()
-            Messages.showErrorDialog(project, error.localizedMessage, "Trier Runtime")
+        if (runtimeTestInProgress) {
+            return
         }
+
+        setRuntimeTestInProgress(true)
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(project, "Trier: Test Runtime", true) {
+                private var report: TrierRuntimeReport? = null
+
+                override fun run(indicator: ProgressIndicator) {
+                    indicator.text = "Testing Trier runtime"
+                    report = runRuntimeTest()
+                }
+
+                override fun onSuccess() {
+                    setRuntimeTestInProgress(false)
+                    updateValidationStatus()
+                    TrierRuntimeReportDialog(project, checkNotNull(report)).show()
+                }
+
+                override fun onThrowable(error: Throwable) {
+                    setRuntimeTestInProgress(false)
+                    updateValidationStatus()
+                    Messages.showErrorDialog(project, runtimeTestErrorMessage(error), "Trier Runtime")
+                }
+
+                override fun onCancel() {
+                    setRuntimeTestInProgress(false)
+                    updateValidationStatus()
+                }
+            },
+        )
+    }
+
+    private fun setRuntimeTestInProgress(value: Boolean) {
+        runtimeTestInProgress = value
+        testRuntimeButton.isEnabled = !value
     }
 
     private fun updateValidationStatus() {
@@ -314,26 +349,34 @@ class TrierSettingsConfigurable : Configurable {
         val interpreter =
             interpreterRef.resolve(project)
                 ?: throw ConfigurationException(
-                    "Selected JavaScript Runtime could not be resolved. Choose a valid local Node.js runtime.",
+                    "Selected JavaScript Runtime could not be resolved. Choose a valid Node.js runtime.",
                 )
 
         return try {
             val path = NodeJsLocalInterpreter.castAndValidate(interpreter).interpreterSystemDependentPath
             TrierNodeRuntimeValidator.validateLocalNodeRuntime(path)
         } catch (_: ExecutionException) {
-            throw ConfigurationException(
-                "Trier currently supports only local Node.js runtimes. Select a local JavaScript Runtime.",
-            )
+            val validationError = interpreter.validate(project)
+            if (!validationError.isNullOrBlank()) {
+                throw ConfigurationException(validationError)
+            }
+            interpreter.presentableName
         } catch (error: IllegalStateException) {
             throw ConfigurationException(error.message ?: "Invalid Node.js runtime.")
         }
     }
 
-    private fun runRuntimeTest(): String {
+    private fun runRuntimeTest(): TrierRuntimeReport {
         validateCurrentValues()
         testRuntimeProbe?.let { return it(currentResolvedSettings()) }
         return TrierSortService.getInstance().testRuntime(project, currentResolvedSettings())
     }
+
+    private fun runtimeTestErrorMessage(error: Throwable): String =
+        (error as? ConfigurationException)?.localizedMessage
+            ?: error.localizedMessage
+            ?: error.message
+            ?: "Trier runtime test failed. Check the selected JavaScript Runtime and IDE logs for details."
 
     private fun validateOptionalPath(
         label: String,
@@ -422,5 +465,77 @@ class TrierSettingsConfigurable : Configurable {
             tailwindFunctionsArea = tailwindFunctionsArea,
         )
 
-    internal fun runRuntimeTestForTest(): String = runRuntimeTest()
+    internal fun runRuntimeTestForTest(): TrierRuntimeReport = runRuntimeTest()
 }
+
+private class TrierRuntimeReportDialog(
+    project: Project,
+    private val report: TrierRuntimeReport,
+) : DialogWrapper(project) {
+    init {
+        title = "Trier Runtime"
+        setOKButtonText("Close")
+        init()
+    }
+
+    override fun createCenterPanel(): JComponent {
+        val width = 680
+        val editor =
+            JEditorPane("text/html", buildRuntimeReportHtml(report)).apply {
+                isEditable = false
+                isOpaque = false
+                putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
+                border = JBUI.Borders.empty(8)
+            }
+        editor.setSize(width, Int.MAX_VALUE)
+        val contentHeight = editor.preferredSize.height.coerceIn(120, 420)
+        editor.preferredSize = Dimension(width, contentHeight)
+
+        return JPanel(BorderLayout()).apply {
+            border = JBUI.Borders.empty(8)
+            preferredSize = Dimension(width + 24, contentHeight + 24)
+            add(
+                if (contentHeight >= 420) {
+                    JBScrollPane(editor)
+                } else {
+                    editor
+                },
+                BorderLayout.CENTER,
+            )
+        }
+    }
+
+    override fun createActions(): Array<Action> = arrayOf(okAction)
+}
+
+internal fun buildRuntimeReportHtml(report: TrierRuntimeReport): String =
+    buildString {
+        append("<html><body style=\"margin:0;\">")
+        report.rows().forEachIndexed { index, row ->
+            if (index > 0) {
+                append("<div style=\"height:8px;\"></div>")
+            }
+            append("<strong>")
+            append(escapeRuntimeHtml(row.label))
+            append(":</strong><br>")
+            append("<span>")
+            append(escapeRuntimeHtml(row.value).softBreakLongPath())
+            append("</span><br>")
+        }
+        append("</body></html>")
+    }
+
+private fun escapeRuntimeHtml(value: String): String =
+    buildString {
+        value.forEach { char ->
+            when (char) {
+                '&' -> append("&amp;")
+                '<' -> append("&lt;")
+                '>' -> append("&gt;")
+                '"' -> append("&quot;")
+                else -> append(char)
+            }
+        }
+    }
+
+private fun String.softBreakLongPath(): String = replace("/", "/&#8203;").replace("\\", "\\&#8203;")

@@ -922,16 +922,16 @@ class TrierSortService {
         request: TrierNodeRequest,
         settings: TrierResolvedSettings,
     ): List<String> {
-        val nodePath = resolveNodePath(project, settings)
-        return workerService.sort(nodePath, helperService.helperScriptPath(), request)
+        val runtime = resolveNodeRuntime(project, settings)
+        return workerService.sort(runtime, helperService.helperScriptPath(), request)
     }
 
-    fun testRuntime(
+    internal fun testRuntime(
         project: Project,
         settings: TrierResolvedSettings,
-    ): String {
+    ): TrierRuntimeReport {
         val resolvedSettings = resolveTailwindProjectPaths(project, null, settings)
-        val nodePath = resolveNodePath(project, resolvedSettings)
+        val runtime = resolveNodeRuntime(project, resolvedSettings)
         val runtimePath = helperService.bundledRuntimePath()
         val scriptPath = helperService.helperScriptPath()
         val request =
@@ -945,15 +945,14 @@ class TrierSortService {
                 preserveDuplicates = resolvedSettings.tailwindPreserveDuplicates,
                 values = listOf("text-center p-4 flex"),
             )
-        val sampleResult = workerService.sort(nodePath, scriptPath, request).singleOrNull().orEmpty()
-        return buildString {
-            appendLine("Node: $nodePath")
-            appendLine("Helper: ${scriptPath.absolutePathString()}")
-            appendLine("Bundled runtime: ${runtimePath.absolutePathString()}")
-            appendLine("Tailwind stylesheet: ${resolvedSettings.tailwindStylesheet ?: "auto-detect did not find one"}")
-            appendLine("Tailwind config: ${resolvedSettings.tailwindConfig ?: "auto-detect did not find one"}")
-            append("Sample sort result: $sampleResult")
-        }
+        val sampleResult = workerService.sort(runtime, scriptPath, request).singleOrNull().orEmpty()
+        return TrierRuntimeReport(
+            node = runtime.presentableName,
+            bundledRuntime = runtimePath.absolutePathString(),
+            tailwindStylesheet = resolvedSettings.tailwindStylesheet,
+            tailwindConfig = resolvedSettings.tailwindConfig,
+            sampleSortResult = sampleResult,
+        )
     }
 
     private fun resolveTailwindProjectPaths(
@@ -1012,10 +1011,10 @@ class TrierSortService {
                 .normalize()
                 .pathString
 
-    private fun resolveNodePath(
+    private fun resolveNodeRuntime(
         project: Project,
         settings: TrierResolvedSettings,
-    ): String {
+    ): TrierNodeRuntime {
         val interpreterRef =
             settings.nodeInterpreterRef?.takeIf { it.isNotBlank() }?.let(NodeJsInterpreterRef::create)
                 ?: NodeJsInterpreterManager.getInstance(project).interpreterRef
@@ -1025,13 +1024,17 @@ class TrierSortService {
                 ?: error("Selected JavaScript Runtime could not be resolved for project '${project.name}'.")
 
         return try {
-            TrierNodeRuntimeValidator.validateLocalNodeRuntime(
-                NodeJsLocalInterpreter.castAndValidate(interpreter).interpreterSystemDependentPath,
-            )
+            val nodePath =
+                TrierNodeRuntimeValidator.validateLocalNodeRuntime(
+                    NodeJsLocalInterpreter.castAndValidate(interpreter).interpreterSystemDependentPath,
+                )
+            TrierNodeRuntime.Local(nodePath)
         } catch (_: ExecutionException) {
-            error(
-                "Trier currently supports only local Node.js runtimes. Select a local JavaScript Runtime in the IDE settings.",
-            )
+            val validationError = interpreter.validate(project)
+            if (!validationError.isNullOrBlank()) {
+                error(validationError)
+            }
+            TrierNodeRuntime.Target(interpreter, interpreter.presentableName, project)
         }
     }
 

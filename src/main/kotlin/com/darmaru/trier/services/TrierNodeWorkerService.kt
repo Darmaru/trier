@@ -1,7 +1,13 @@
 package com.darmaru.trier.services
 
 import com.darmaru.trier.processing.TrierNodeRequest
+import com.intellij.execution.process.KillableProcessHandler
+import com.intellij.execution.target.value.TargetValue
+import com.intellij.javascript.nodejs.execution.NodeTargetRun
+import com.intellij.javascript.nodejs.execution.NodeTargetRunOptions
+import com.intellij.javascript.nodejs.interpreter.NodeJsInterpreter
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.project.Project
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.InputStreamReader
@@ -9,10 +15,33 @@ import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.invariantSeparatorsPathString
+
+internal sealed interface TrierNodeRuntime {
+    val cacheKey: String
+    val presentableName: String
+
+    data class Local(
+        val nodePath: String,
+    ) : TrierNodeRuntime {
+        override val cacheKey: String = "local:$nodePath"
+        override val presentableName: String = nodePath
+    }
+
+    data class Target(
+        val interpreter: NodeJsInterpreter,
+        override val presentableName: String,
+        val project: Project,
+    ) : TrierNodeRuntime {
+        override val cacheKey: String = "target:${interpreter.referenceName}"
+    }
+}
 
 @Service(Service.Level.APP)
 class TrierNodeWorkerService {
@@ -24,12 +53,19 @@ class TrierNodeWorkerService {
         scriptPath: Path,
         request: TrierNodeRequest,
         timeoutMillis: Long = DEFAULT_WORKER_TIMEOUT_MILLIS,
+    ): List<String> = sort(TrierNodeRuntime.Local(nodePath), scriptPath, request, timeoutMillis)
+
+    internal fun sort(
+        runtime: TrierNodeRuntime,
+        scriptPath: Path,
+        request: TrierNodeRequest,
+        timeoutMillis: Long = DEFAULT_WORKER_TIMEOUT_MILLIS,
     ): List<String> =
         synchronized(lock) {
             var lastError: Exception? = null
             repeat(2) { attempt ->
                 try {
-                    return ensureWorker(nodePath, scriptPath).send(request, timeoutMillis)
+                    return ensureWorker(runtime, scriptPath, request).send(request, timeoutMillis)
                 } catch (error: Exception) {
                     lastError = error
                     destroyWorker()
@@ -42,16 +78,17 @@ class TrierNodeWorkerService {
         }
 
     private fun ensureWorker(
-        nodePath: String,
+        runtime: TrierNodeRuntime,
         scriptPath: Path,
+        request: TrierNodeRequest,
     ): WorkerSession {
         val existing = worker
-        if (existing != null && existing.matches(nodePath, scriptPath) && existing.isAlive()) {
+        if (existing != null && existing.matches(runtime, scriptPath, request) && existing.isAlive()) {
             return existing
         }
 
         destroyWorker()
-        return WorkerSession.start(nodePath, scriptPath).also { worker = it }
+        return WorkerSession.start(runtime, scriptPath, request).also { worker = it }
     }
 
     private fun destroyWorker() {
@@ -59,8 +96,8 @@ class TrierNodeWorkerService {
         worker = null
     }
 
-    private class WorkerSession private constructor(
-        private val nodePath: String,
+    private abstract class WorkerSession(
+        private val runtimeKey: String,
         private val scriptPath: Path,
         private val process: Process,
         private val stdin: BufferedWriter,
@@ -69,10 +106,11 @@ class TrierNodeWorkerService {
     ) {
         private val requestId = AtomicLong(0)
 
-        fun matches(
-            nodePath: String,
+        open fun matches(
+            runtime: TrierNodeRuntime,
             scriptPath: Path,
-        ): Boolean = this.nodePath == nodePath && this.scriptPath == scriptPath
+            request: TrierNodeRequest,
+        ): Boolean = runtime.cacheKey == runtimeKey && this.scriptPath == scriptPath
 
         fun isAlive(): Boolean = process.isAlive
 
@@ -85,7 +123,7 @@ class TrierNodeWorkerService {
             }
 
             val id = requestId.incrementAndGet()
-            stdin.write(request.toJson(id))
+            stdin.write(prepareRequest(request).toJson(id))
             stdin.newLine()
             stdin.flush()
 
@@ -95,6 +133,8 @@ class TrierNodeWorkerService {
 
             return parseResponse(id, line)
         }
+
+        protected open fun prepareRequest(request: TrierNodeRequest): TrierNodeRequest = request
 
         private fun readStdoutLine(timeoutMillis: Long): String? {
             val result = AtomicReference<Result<String?>>()
@@ -166,39 +206,105 @@ class TrierNodeWorkerService {
 
         companion object {
             fun start(
-                nodePath: String,
+                runtime: TrierNodeRuntime,
                 scriptPath: Path,
+                request: TrierNodeRequest,
             ): WorkerSession {
+                if (runtime is TrierNodeRuntime.Target) {
+                    return TargetWorkerSession.start(runtime, scriptPath, request)
+                }
+                runtime as TrierNodeRuntime.Local
                 val process =
-                    ProcessBuilder(nodePath, scriptPath.absolutePathString())
+                    ProcessBuilder(runtime.nodePath, scriptPath.absolutePathString())
                         .redirectErrorStream(false)
                         .start()
 
-                val stdin = OutputStreamWriter(process.outputStream, StandardCharsets.UTF_8).buffered()
-                val stdout = BufferedReader(InputStreamReader(process.inputStream, StandardCharsets.UTF_8))
-                val stderrTail = StringBuilder()
-                val stderrReader = BufferedReader(InputStreamReader(process.errorStream, StandardCharsets.UTF_8))
+                return LocalWorkerSession(runtime, scriptPath, process)
+            }
+        }
+    }
 
-                Thread
-                    .ofVirtual()
-                    .name("trier-node-worker-stderr")
-                    .start {
-                        stderrReader.useLines { lines ->
-                            lines.forEach { line ->
-                                synchronized(stderrTail) {
-                                    if (stderrTail.isNotEmpty()) {
-                                        stderrTail.append('\n')
-                                    }
-                                    stderrTail.append(line)
-                                    if (stderrTail.length > 8000) {
-                                        stderrTail.delete(0, stderrTail.length - 8000)
-                                    }
-                                }
-                            }
-                        }
-                    }
+    private class LocalWorkerSession(
+        runtime: TrierNodeRuntime.Local,
+        scriptPath: Path,
+        process: Process,
+    ) : WorkerSession(
+            runtimeKey = runtime.cacheKey,
+            scriptPath = scriptPath,
+            process = process,
+            stdin = OutputStreamWriter(process.outputStream, StandardCharsets.UTF_8).buffered(),
+            stdout = BufferedReader(InputStreamReader(process.inputStream, StandardCharsets.UTF_8)),
+            stderrTail = startStderrReader(process),
+        )
 
-                return WorkerSession(nodePath, scriptPath, process, stdin, stdout, stderrTail)
+    private class TargetWorkerSession(
+        runtime: TrierNodeRuntime.Target,
+        scriptPath: Path,
+        processHandler: KillableProcessHandler,
+        private val localBasePath: String,
+        private val targetBasePath: String,
+        private val targetRuntimePath: String,
+    ) : WorkerSession(
+            runtimeKey = runtime.cacheKey,
+            scriptPath = scriptPath,
+            process = processHandler.process,
+            stdin = OutputStreamWriter(processHandler.process.outputStream, StandardCharsets.UTF_8).buffered(),
+            stdout = BufferedReader(InputStreamReader(processHandler.process.inputStream, StandardCharsets.UTF_8)),
+            stderrTail = startStderrReader(processHandler.process),
+        ) {
+        override fun matches(
+            runtime: TrierNodeRuntime,
+            scriptPath: Path,
+            request: TrierNodeRequest,
+        ): Boolean =
+            super.matches(runtime, scriptPath, request) &&
+                request.base == localBasePath &&
+                targetRuntimePath.isNotBlank() &&
+                targetBasePath.isNotBlank()
+
+        override fun prepareRequest(request: TrierNodeRequest): TrierNodeRequest =
+            request.copy(
+                moduleBase = targetRuntimePath,
+                base = targetBasePath,
+                filepath = request.filepath?.let { mapLocalPathToTargetPath(it, localBasePath, targetBasePath) },
+                configPath = request.configPath?.let { mapLocalPathToTargetPath(it, localBasePath, targetBasePath) },
+                stylesheetPath =
+                    request.stylesheetPath?.let {
+                        mapLocalPathToTargetPath(
+                            it,
+                            localBasePath,
+                            targetBasePath,
+                        )
+                    },
+            )
+
+        companion object {
+            fun start(
+                runtime: TrierNodeRuntime.Target,
+                scriptPath: Path,
+                request: TrierNodeRequest,
+            ): TargetWorkerSession {
+                val targetRun =
+                    NodeTargetRun(
+                        runtime.interpreter,
+                        runtime.project,
+                        null,
+                        NodeTargetRunOptions.of(false),
+                    )
+                val targetScriptPath = targetRun.path(scriptPath)
+                val targetRuntimePath = targetRun.path(request.moduleBase)
+                val targetBasePath = targetRun.requestUploadProjectRootAndGetPath(request.base)
+                targetRun.commandLineBuilder.addParameter(targetScriptPath)
+                val process = targetRun.startProcessEx()
+
+                return TargetWorkerSession(
+                    runtime = runtime,
+                    scriptPath = scriptPath,
+                    processHandler = process.processHandler,
+                    localBasePath = request.base,
+                    targetBasePath = targetBasePath.targetString("project root"),
+                    targetRuntimePath = targetRuntimePath.targetString("bundled runtime"),
+                )
             }
         }
     }
@@ -427,4 +533,66 @@ class TrierNodeWorkerService {
     private class WorkerTimeoutException(
         message: String,
     ) : IllegalStateException(message)
+}
+
+internal fun mapLocalPathToTargetPath(
+    localPath: String,
+    localBasePath: String,
+    targetBasePath: String,
+): String {
+    val local = Path.of(localPath).normalize()
+    val base = Path.of(localBasePath).normalize()
+    if (!local.startsWith(base)) {
+        return localPath
+    }
+
+    val relativePath = base.relativize(local).invariantSeparatorsPathString
+    return joinTargetPath(targetBasePath, relativePath)
+}
+
+private fun joinTargetPath(
+    base: String,
+    relativePath: String,
+): String {
+    if (relativePath.isBlank()) {
+        return base
+    }
+    val separator = if (base.contains('\\') && !base.contains('/')) "\\" else "/"
+    return base.trimEnd('/', '\\') + separator + relativePath.replace("/", separator)
+}
+
+private fun TargetValue<String>.targetString(label: String): String =
+    try {
+        targetValue.blockingGet(0) ?: error("Could not resolve Trier $label path inside the selected Node target.")
+    } catch (error: TimeoutException) {
+        throw IllegalStateException(
+            "Timed out while resolving Trier $label path inside the selected Node target.",
+            error,
+        )
+    } catch (error: ExecutionException) {
+        throw IllegalStateException("Failed to resolve Trier $label path inside the selected Node target.", error)
+    }
+
+private fun startStderrReader(process: Process): StringBuilder {
+    val stderrTail = StringBuilder()
+    val stderrReader = BufferedReader(InputStreamReader(process.errorStream, StandardCharsets.UTF_8))
+    Thread
+        .ofVirtual()
+        .name("trier-node-worker-stderr")
+        .start {
+            stderrReader.useLines { lines ->
+                lines.forEach { line ->
+                    synchronized(stderrTail) {
+                        if (stderrTail.isNotEmpty()) {
+                            stderrTail.append('\n')
+                        }
+                        stderrTail.append(line)
+                        if (stderrTail.length > 8000) {
+                            stderrTail.delete(0, stderrTail.length - 8000)
+                        }
+                    }
+                }
+            }
+        }
+    return stderrTail
 }

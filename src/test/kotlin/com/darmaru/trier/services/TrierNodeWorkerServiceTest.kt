@@ -99,6 +99,30 @@ class TrierNodeWorkerServiceTest {
     }
 
     @Test
+    fun mapsLocalProjectPathsToTargetProjectPaths() {
+        assertEquals(
+            "/app/src/components/Button.vue",
+            mapLocalPathToTargetPath(
+                "/Users/me/project/src/components/Button.vue",
+                "/Users/me/project",
+                "/app",
+            ),
+        )
+    }
+
+    @Test
+    fun keepsPathUnchangedWhenItIsOutsideMappedProjectRoot() {
+        assertEquals(
+            "/tmp/external/tailwind.config.js",
+            mapLocalPathToTargetPath(
+                "/tmp/external/tailwind.config.js",
+                "/Users/me/project",
+                "/app",
+            ),
+        )
+    }
+
+    @Test
     fun workerServiceRunsJsonlWorkerProcess() {
         val script =
             createTempFile("trier-worker-test", ".mjs").also {

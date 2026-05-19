@@ -149,7 +149,7 @@ intellijPlatform {
             <p><strong>Configuration</strong></p>
             <ul>
                 <li>Uses the IDE JavaScript Runtime selector for Node.js.</li>
-                <li>Requires a local Node.js 20.19+ runtime.</li>
+                <li>Supports local and Docker/remote Node.js runtimes through the IDE JavaScript Runtime selector.</li>
                 <li>Auto-detects Tailwind config and stylesheet paths when settings fields are left blank, while still
                 allowing explicit overrides.</li>
                 <li>Supports preserve whitespace, preserve duplicates, custom attributes, and custom functions.</li>
@@ -163,15 +163,14 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Dry-run review stability and framework support planning.</strong></p>
+            <p><strong>Docker and remote Node.js runtime support.</strong></p>
             <ul>
-                <li>Reworked dry-run diff review around Trier-owned diff windows with previous/next navigation and an
-                Apply flow that advances through remaining files.</li>
-                <li>Moved dry-run selection, remaining-change tracking, diff navigation, and batch apply results into
-                test-covered state models.</li>
-                <li>Fixed dry-run bulk apply cancellation so files already applied before cancellation are removed from
-                the remaining review list.</li>
-                <li>Added a framework support roadmap for current coverage and future stabilization priorities.</li>
+                <li>Supports Docker and remote Node.js interpreters configured through the IDE JavaScript Runtime
+                selector.</li>
+                <li>Keeps local Node.js runtime behavior unchanged while allowing Trier to run the bundled sorter in
+                Docker and remote runtimes.</li>
+                <li>Improves the runtime test flow with background execution, a clearer result dialog, and visible
+                errors for invalid Docker images or missing Node.js executables.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

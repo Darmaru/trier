@@ -2,6 +2,21 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.5] - 2026-05-19
+
+### Added
+
+- Added support for Docker and remote Node.js interpreters configured through the IDE JavaScript Runtime selector.
+
+### Changed
+
+- Kept local Node.js runtime behavior unchanged while allowing Trier to run the bundled sorter in Docker and remote runtimes.
+- Improved `Test Trier runtime` so slow runtime checks run in the background and successful results are easier to read.
+
+### Fixed
+
+- Show runtime test failures from invalid Docker images or missing Node.js executables in an error dialog.
+
 ## [0.2.4] - 2026-05-16
 
 ### Added
