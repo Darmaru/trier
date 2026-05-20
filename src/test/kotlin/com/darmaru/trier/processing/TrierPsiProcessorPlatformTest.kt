@@ -236,6 +236,33 @@ class TrierPsiProcessorPlatformTest : BasePlatformTestCase() {
         )
     }
 
+    fun testProcessesNestedJsxHelperExpressionFragments() {
+        val text =
+            """
+            const classes = cn([
+              "text-center p-4 flex bg-red-500 font-bold",
+              active && {
+                "font-bold flex p-4": compact,
+              },
+            ]);
+            """.trimIndent()
+        val file = myFixture.configureByText("test.tsx", text)
+
+        val result = processor().process(file, text, settings, useFallback = false)
+
+        assertEquals(
+            """
+            const classes = cn([
+              "flex bg-red-500 p-4 text-center font-bold",
+              active && {
+                "flex p-4 font-bold": compact,
+              },
+            ]);
+            """.trimIndent(),
+            result,
+        )
+    }
+
     fun testProcessesJsxClassNameExpressionTemplateLiteral() {
         val text = """const view = <div className={`text-center p-4 flex bg-red-500 font-bold`} />;"""
         val file = myFixture.configureByText("test.jsx", text)
@@ -369,6 +396,37 @@ class TrierPsiProcessorPlatformTest : BasePlatformTestCase() {
               <div :class="[
                 'flex bg-red-500 p-4 text-center font-bold',
                 { 'flex p-4 font-bold': isActive },
+              ]"></div>
+            </template>
+            """.trimIndent(),
+            result,
+        )
+    }
+
+    fun testProcessesRealVueNestedClassBindingQuotedFragments() {
+        val text =
+            """
+            <template>
+              <div :class="[
+                isActive ? ['text-center p-4 flex bg-red-500 font-bold'] : [],
+                {
+                  'font-bold flex p-4': compact,
+                },
+              ]"></div>
+            </template>
+            """.trimIndent()
+        val file = myFixture.configureByText("Component.vue", text)
+
+        val result = processor().process(file, text, settings, useFallback = false)
+
+        assertEquals(
+            """
+            <template>
+              <div :class="[
+                isActive ? ['flex bg-red-500 p-4 text-center font-bold'] : [],
+                {
+                  'flex p-4 font-bold': compact,
+                },
               ]"></div>
             </template>
             """.trimIndent(),

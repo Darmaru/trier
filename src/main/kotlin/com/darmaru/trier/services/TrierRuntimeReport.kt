@@ -2,6 +2,7 @@ package com.darmaru.trier.services
 
 internal data class TrierRuntimeReport(
     val node: String,
+    val nodeVersion: String,
     val bundledRuntime: String,
     val tailwindStylesheet: String?,
     val tailwindConfig: String?,
@@ -10,6 +11,7 @@ internal data class TrierRuntimeReport(
     fun rows(): List<TrierRuntimeReportRow> =
         listOf(
             TrierRuntimeReportRow("Node", node),
+            TrierRuntimeReportRow("Node version", nodeVersion),
             TrierRuntimeReportRow("Bundled runtime", bundledRuntime),
             TrierRuntimeReportRow("Tailwind stylesheet", tailwindStylesheet ?: AUTO_DETECT_NOT_FOUND),
             TrierRuntimeReportRow("Tailwind config", tailwindConfig ?: AUTO_DETECT_NOT_FOUND),

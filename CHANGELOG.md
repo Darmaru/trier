@@ -2,6 +2,23 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.6] - 2026-05-20
+
+### Changed
+
+- Improved `Test Trier runtime` so it reports the actual Node.js version selected by the IDE runtime, including Docker and remote runtimes.
+- Documented Node.js 22 as the recommended Docker/remote runtime while keeping Node.js 20.19+ as the minimum supported version.
+- Improved configured JS/TS helper handling for quoted object keys such as `cn({ "...": active })`.
+- Updated the framework support roadmap to match the current regression coverage and near-term stabilization plan.
+
+### Fixed
+
+- Avoid surfacing a JetBrains Tailwind CSS LSP upload-root error as a Trier save failure when the document was already saved successfully.
+
+### Tests
+
+- Added regression coverage for nested JSX helper expressions and nested Vue dynamic class bindings.
+
 ## [0.2.5] - 2026-05-19
 
 ### Added

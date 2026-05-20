@@ -16,6 +16,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -41,6 +42,8 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.pathString
 
 private const val REFORMAT_TRIGGER = "Reformat"
+
+private val LOG = Logger.getInstance(TrierSortService::class.java)
 
 data class FolderSortReport(
     val scanned: Int = 0,
@@ -725,19 +728,23 @@ class TrierSortService {
                     }
 
                     ApplicationManager.getApplication().invokeLater {
-                        applyDocumentUpdate(
-                            project = project,
-                            document = document,
-                            trigger = trigger,
-                            original = original,
-                            originalModificationStamp = originalModificationStamp,
-                            updated = updated,
-                            commitPsi = commitPsi,
-                            useCommand = useCommand,
-                            saveAfterApply = saveAfterApply,
-                            selectionRange = selectionRange,
-                            retryOnChangedDocument = retryOnChangedDocument,
-                        )
+                        try {
+                            applyDocumentUpdate(
+                                project = project,
+                                document = document,
+                                trigger = trigger,
+                                original = original,
+                                originalModificationStamp = originalModificationStamp,
+                                updated = updated,
+                                commitPsi = commitPsi,
+                                useCommand = useCommand,
+                                saveAfterApply = saveAfterApply,
+                                selectionRange = selectionRange,
+                                retryOnChangedDocument = retryOnChangedDocument,
+                            )
+                        } catch (error: Exception) {
+                            helperService.notifyError("Trier failed", error.message ?: error.javaClass.simpleName)
+                        }
                     }
                 } catch (error: ProcessCanceledException) {
                     guard.release(document)
@@ -861,7 +868,7 @@ class TrierSortService {
                 }
 
                 if (saveAfterApply) {
-                    FileDocumentManager.getInstance().saveDocument(document)
+                    saveDocumentAfterApply(document)
                 }
             }
         } finally {
@@ -934,6 +941,7 @@ class TrierSortService {
         val runtime = resolveNodeRuntime(project, resolvedSettings)
         val runtimePath = helperService.bundledRuntimePath()
         val scriptPath = helperService.helperScriptPath()
+        val nodeVersion = workerService.version(runtime)
         val request =
             TrierNodeRequest(
                 moduleBase = runtimePath.absolutePathString(),
@@ -948,6 +956,7 @@ class TrierSortService {
         val sampleResult = workerService.sort(runtime, scriptPath, request).singleOrNull().orEmpty()
         return TrierRuntimeReport(
             node = runtime.presentableName,
+            nodeVersion = nodeVersion,
             bundledRuntime = runtimePath.absolutePathString(),
             tailwindStylesheet = resolvedSettings.tailwindStylesheet,
             tailwindConfig = resolvedSettings.tailwindConfig,
@@ -969,6 +978,19 @@ class TrierSortService {
             tailwindStylesheet = settings.tailwindStylesheet ?: detectedPaths.stylesheet,
             tailwindConfig = settings.tailwindConfig ?: detectedPaths.config,
         )
+    }
+
+    private fun saveDocumentAfterApply(document: Document) {
+        val documentManager = FileDocumentManager.getInstance()
+        try {
+            documentManager.saveDocument(document)
+        } catch (error: RuntimeException) {
+            if (isTailwindLspUploadRootError(error) && !documentManager.isDocumentUnsaved(document)) {
+                LOG.warn("Ignoring Tailwind CSS LSP upload root error after Trier saved the document.", error)
+                return
+            }
+            throw error
+        }
     }
 
     private fun currentFilePath(document: Document): String? = FileDocumentManager.getInstance().getFile(document)?.path
@@ -1076,4 +1098,18 @@ class TrierSortService {
             testSortOverride = override
         }
     }
+}
+
+internal fun isTailwindLspUploadRootError(error: Throwable): Boolean {
+    val throwableChain = generateSequence(error) { it.cause }
+    val hasUploadRootMessage =
+        throwableChain.any { it.message?.contains("No upload root registered for") == true }
+
+    if (!hasUploadRootMessage) {
+        return false
+    }
+
+    return generateSequence(error) { it.cause }
+        .flatMap { it.stackTrace.asSequence() }
+        .any { it.className == "com.intellij.tailwind.lsp.TailwindLspServerDescriptor" }
 }

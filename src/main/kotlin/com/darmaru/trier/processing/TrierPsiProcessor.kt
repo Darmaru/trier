@@ -2,6 +2,7 @@ package com.darmaru.trier.processing
 
 import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSLiteralExpression
+import com.intellij.lang.javascript.psi.JSProperty
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.ecma6.ES6TaggedTemplateExpression
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
@@ -75,6 +76,14 @@ class TrierPsiProcessor(
                                     foundPsiTargetInRange = true
                                 }
                                 collectJsLiteralCandidate(element, functionPredicates)
+                                    ?.takeIf { isCandidateAllowed(it, limitRange) }
+                                    ?.let(candidates::add)
+                            }
+                            is JSProperty -> {
+                                if (hasJsPropertyKeyTarget(element, functionPredicates, limitRange)) {
+                                    foundPsiTargetInRange = true
+                                }
+                                collectJsPropertyKeyCandidate(element, functionPredicates)
                                     ?.takeIf { isCandidateAllowed(it, limitRange) }
                                     ?.let(candidates::add)
                             }
@@ -157,6 +166,24 @@ class TrierPsiProcessor(
         return SortCandidate(range.startOffset, range.endOffset, value)
     }
 
+    private fun collectJsPropertyKeyCandidate(
+        property: JSProperty,
+        predicates: List<(String) -> Boolean>,
+    ): SortCandidate? {
+        if (!isInsideConfiguredFunction(property, predicates)) {
+            return null
+        }
+
+        val identifier = property.nameIdentifier ?: return null
+        val text = identifier.text
+        if (text.length < 2 || text.first() !in QUOTE_CHARS || text.last() != text.first()) {
+            return null
+        }
+
+        val range = TextRange(identifier.textRange.startOffset + 1, identifier.textRange.endOffset - 1)
+        return SortCandidate(range.startOffset, range.endOffset, text.substring(1, text.length - 1))
+    }
+
     private fun hasXmlAttributeTarget(
         attribute: XmlAttribute,
         predicates: List<(String) -> Boolean>,
@@ -191,6 +218,23 @@ class TrierPsiProcessor(
             return false
         }
         val range = TextRange(literal.textRange.startOffset + 1, literal.textRange.endOffset - 1)
+        return intersectsLimitRange(range, limitRange)
+    }
+
+    private fun hasJsPropertyKeyTarget(
+        property: JSProperty,
+        predicates: List<(String) -> Boolean>,
+        limitRange: TextRange?,
+    ): Boolean {
+        if (!isInsideConfiguredFunction(property, predicates)) {
+            return false
+        }
+        val identifier = property.nameIdentifier ?: return false
+        val text = identifier.text
+        if (text.length < 2 || text.first() !in QUOTE_CHARS || text.last() != text.first()) {
+            return false
+        }
+        val range = TextRange(identifier.textRange.startOffset + 1, identifier.textRange.endOffset - 1)
         return intersectsLimitRange(range, limitRange)
     }
 
@@ -313,6 +357,8 @@ class TrierPsiProcessor(
     }
 
     companion object {
+        private val QUOTE_CHARS = setOf('\'', '"', '`')
+
         internal fun findApplyValueRange(text: String): TextRange? {
             val match = Regex("""@apply(\s+)([^;{}]+)(?=\s*;)""").find(text) ?: return null
             val value = match.groups[2] ?: return null

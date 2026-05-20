@@ -26,14 +26,14 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 
 | Area | Current Level | Current Coverage | Gaps |
 | --- | --- | --- | --- |
-| HTML/XML | Supported | `class="..."`, custom attributes, editor/folder/dry-run workflows | More malformed/partial markup no-op tests. |
-| JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, helper calls | More multiline helper call and nested expression tests. |
-| CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows | More nested at-rule and malformed declaration tests. |
-| Vue SFC | Partial | Static template classes, `:class` / `v-bind:class` quoted fragments, object keys, mixed arrays/objects, `<script setup>` helper calls, `<style>` `@apply` | Broader nested expressions and formatting preservation cases before promotion to Supported. |
-| Svelte | Best effort | Folder globs include `.svelte`; fallback may sort simple static strings | `class:active`, `class={...}`, reactive expressions, script helper calls, style blocks. |
-| Astro | Best effort | Folder globs include `.astro`; fallback may sort simple static strings | `class:list`, JSX-like expressions, frontmatter helper calls. |
-| Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments | `[class.foo]`, `[ngClass]` arrays/objects, template expressions, custom pipes. |
-| Laravel Blade / PHP | Best effort | Folder globs include `.php`; fallback may sort simple static strings | `@class`, PHP arrays, component attributes, escaped directives. |
+| HTML/XML | Supported | `class="..."`, custom attributes, editor/folder/dry-run workflows, basic malformed no-op coverage | Broader fixture coverage for partial or broken markup. |
+| JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, multiline and nested helper calls, quoted helper object keys | Broader real-world helper composition fixtures. |
+| CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows, basic malformed no-op coverage | More nested at-rule and malformed declaration tests. |
+| Vue SFC | Partial | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation | Dedicated fixture suite and a final manual smoke pass before promotion to Supported. |
+| Svelte | Best effort | Folder globs include `.svelte`; fallback may sort simple static strings; unsupported `class:` directives have no-op coverage | `class={...}`, reactive expressions, script helper calls, style blocks. |
+| Astro | Best effort | Folder globs include `.astro`; fallback may sort simple static strings; unsupported `class:list` has no-op coverage | JSX-like expressions, frontmatter helper calls, component attributes. |
+| Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments; unsupported `[class.foo]` has no-op coverage | `[ngClass]` arrays/objects, template expressions, custom pipes, formatting preservation. |
+| Laravel Blade / PHP | Best effort | Folder globs include `.php`; fallback may sort simple static strings; unsupported `@class` has no-op coverage | PHP arrays, Blade component attributes, escaped directives, mixed PHP/HTML no-op behavior. |
 | Other template engines | Planned | None | Needs demand-driven investigation. |
 
 ## Stabilization Track
@@ -43,10 +43,10 @@ These items should come before expanding framework coverage heavily.
 ### Sorter and Candidate Extraction
 
 - Add fixture-based regression tests for every supported syntax shape.
-- Separate candidate detection tests from end-to-end service tests.
-- Add explicit no-op tests for unsupported or ambiguous syntax.
+- Keep candidate detection tests separate from end-to-end service tests where practical.
+- Continue adding explicit no-op tests for unsupported or ambiguous syntax.
 - Keep sorting stable for partial editor selections.
-- Verify custom attributes/functions across HTML, JSX/TSX, Vue, and fallback text processing.
+- Maintain custom attribute/function coverage across HTML, JSX/TSX, Vue, and fallback text processing.
 
 ### Dry Run and Apply
 
@@ -93,11 +93,12 @@ Test and support:
 - [x] `:class="['...', condition && '...']"`.
 - [x] `:class="{ '...': condition }"`.
 - [x] Mixed arrays and objects.
+- [x] Nested arrays and objects with quoted fragments.
 - [x] `<script setup>` helper calls such as `cn(...)`, `clsx(...)`, and configured helpers.
 - [x] `<style>` `@apply`.
 - [x] Formatting preservation around comments and multiline bindings.
 - [x] Basic malformed/no-op coverage for dynamic bindings.
-- [ ] Broader nested expressions and advanced malformed binding no-op cases.
+- [ ] Dedicated fixture suite and advanced malformed binding no-op cases.
 
 ### Svelte
 
@@ -157,10 +158,12 @@ Investigate:
 ### 0.2.x Stabilization
 
 - Keep CI deterministic and verifier stable.
+- Keep Docker/remote runtime diagnostics clear after the 0.2.5 runtime expansion.
+- Keep this framework roadmap aligned with the tested support matrix.
 - Extract dry-run apply logic into testable services where useful.
 - Add a dry-run apply result model for UI summaries.
-- Add no-op regression tests for unsupported syntax.
-- Complete Vue hardening tests before promising broader support.
+- Continue no-op regression tests for unsupported syntax.
+- Complete a Vue fixture suite before promoting Vue to Supported.
 
 ### 0.3.0 Framework Coverage
 

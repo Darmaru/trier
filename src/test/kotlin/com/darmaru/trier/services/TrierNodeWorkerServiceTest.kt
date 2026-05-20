@@ -123,6 +123,13 @@ class TrierNodeWorkerServiceTest {
     }
 
     @Test
+    fun workerServiceReadsLocalNodeVersion() {
+        val version = TrierNodeWorkerService().version(TrierNodeRuntime.Local("node"))
+
+        assertTrue(version.startsWith("v"))
+    }
+
+    @Test
     fun workerServiceRunsJsonlWorkerProcess() {
         val script =
             createTempFile("trier-worker-test", ".mjs").also {

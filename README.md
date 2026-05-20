@@ -89,7 +89,7 @@ Trier handles the common places where Tailwind class lists appear:
 - CSS/SCSS `@apply`
 - Vue `<style>` `@apply`
 - Custom attributes such as `data-classes`
-- Custom functions such as `cn("...")`, `clsx("...")`, or configured tagged templates such as `tw`
+- Custom functions such as `cn("...")`, `clsx({ "...": active })`, or configured tagged templates such as `tw`
 
 Default attribute targets:
 
@@ -141,7 +141,7 @@ Open `Settings | Tools | Trier`.
 ### Runtime
 
 - `Node interpreter`: uses the IDE JavaScript Runtime selector, including local and Docker/remote runtimes supported by the IDE.
-- `Test Trier runtime`: validates Node.js resolution, bundled runtime extraction, helper script startup, and a real sample sort.
+- `Test Trier runtime`: validates Node.js resolution, reports the actual Node.js version, checks bundled runtime extraction and helper startup, and runs a real sample sort.
 
 ### Triggers
 
@@ -165,7 +165,7 @@ The stylesheet and config file choosers open in the project root when no valid p
 
 Trier bundles the Node-side sorter dependencies used by the plugin. Your project does not need to install `prettier` or `prettier-plugin-tailwindcss`.
 
-Node.js is still required because the Tailwind sorter runs in Node.js. The bundled Tailwind sorter currently requires Node.js `20.19` or newer. Trier supports local and Docker/remote Node.js runtimes configured through the IDE JavaScript Runtime selector.
+Node.js is still required because the Tailwind sorter runs in Node.js. The bundled Tailwind sorter currently requires Node.js `20.19` or newer. Trier supports local and Docker/remote Node.js runtimes configured through the IDE JavaScript Runtime selector. For Docker/remote runtimes, Node.js `22` is recommended.
 
 ## Framework Coverage
 
@@ -269,8 +269,8 @@ Required GitHub repository secrets:
 Release flow:
 
 ```bash
-git tag v0.2.5
-git push origin v0.2.5
+git tag v0.2.6
+git push origin v0.2.6
 ```
 
 The workflow runs `check`, builds the plugin artifact, uploads the ZIP as a GitHub Actions artifact, signs the plugin when signing secrets are present, and publishes it to JetBrains Marketplace with `publishPlugin`.

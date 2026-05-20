@@ -153,8 +153,8 @@ intellijPlatform {
                 <li>Auto-detects Tailwind config and stylesheet paths when settings fields are left blank, while still
                 allowing explicit overrides.</li>
                 <li>Supports preserve whitespace, preserve duplicates, custom attributes, and custom functions.</li>
-                <li>Includes a runtime test button that validates Node.js, bundled runtime extraction, helper startup,
-                and a real sample sort.</li>
+                <li>Includes a runtime test button that reports the actual Node.js version and validates bundled runtime
+                extraction, helper startup, and a real sample sort.</li>
             </ul>
             <p>
                 Trier is designed for teams that want reliable Tailwind ordering across HTML, JSX, TSX, Vue, CSS, and
@@ -163,14 +163,14 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Docker and remote Node.js runtime support.</strong></p>
+            <p><strong>Docker runtime follow-up and diagnostics.</strong></p>
             <ul>
-                <li>Supports Docker and remote Node.js interpreters configured through the IDE JavaScript Runtime
-                selector.</li>
-                <li>Keeps local Node.js runtime behavior unchanged while allowing Trier to run the bundled sorter in
-                Docker and remote runtimes.</li>
-                <li>Improves the runtime test flow with background execution, a clearer result dialog, and visible
-                errors for invalid Docker images or missing Node.js executables.</li>
+                <li>Reports the actual Node.js version in the runtime test and recommends Node.js 22 for Docker/remote
+                runtimes.</li>
+                <li>Avoids surfacing a JetBrains Tailwind CSS LSP upload-root error as a Trier save failure when the
+                document was already saved successfully.</li>
+                <li>Improves quoted object-key handling in configured JS/TS helpers and refreshes framework regression
+                coverage.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

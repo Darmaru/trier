@@ -191,6 +191,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
             captured = settings
             TrierRuntimeReport(
                 node = "/usr/bin/node",
+                nodeVersion = "v22.16.0",
                 bundledRuntime = "/tmp/trier-node-runtime",
                 tailwindStylesheet = settings.tailwindStylesheet,
                 tailwindConfig = settings.tailwindConfig,
@@ -220,6 +221,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
             buildRuntimeReportHtml(
                 TrierRuntimeReport(
                     node = "Docker node:22",
+                    nodeVersion = "v22.16.0",
                     bundledRuntime = "/tmp/trier-node-runtime",
                     tailwindStylesheet = null,
                     tailwindConfig = null,
@@ -228,8 +230,10 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
             )
 
         assertTrue(html.contains("<strong>Node:</strong>"))
+        assertTrue(html.contains("<strong>Node version:</strong>"))
         assertTrue(html.contains("<strong>Sample sort result:</strong>"))
         assertTrue(html.contains("Docker node:22"))
+        assertTrue(html.contains("v22.16.0"))
         assertTrue(html.contains("flex p-4 text-center"))
     }
 

@@ -77,6 +77,29 @@ class TrierNodeWorkerService {
             throw lastError ?: IllegalStateException("Trier Node worker failed unexpectedly.")
         }
 
+    internal fun version(
+        runtime: TrierNodeRuntime,
+        timeoutMillis: Long = DEFAULT_WORKER_TIMEOUT_MILLIS,
+    ): String {
+        val process =
+            when (runtime) {
+                is TrierNodeRuntime.Local -> ProcessBuilder(runtime.nodePath, "--version").start()
+                is TrierNodeRuntime.Target -> {
+                    val targetRun =
+                        NodeTargetRun(
+                            runtime.interpreter,
+                            runtime.project,
+                            null,
+                            NodeTargetRunOptions.of(false),
+                        )
+                    targetRun.commandLineBuilder.addParameter("--version")
+                    targetRun.startProcessEx().processHandler.process
+                }
+            }
+
+        return readProcessOutput(process, timeoutMillis, "Node version check")
+    }
+
     private fun ensureWorker(
         runtime: TrierNodeRuntime,
         scriptPath: Path,
@@ -533,6 +556,52 @@ class TrierNodeWorkerService {
     private class WorkerTimeoutException(
         message: String,
     ) : IllegalStateException(message)
+}
+
+private fun readProcessOutput(
+    process: Process,
+    timeoutMillis: Long,
+    description: String,
+): String {
+    val stderrTail = startStderrReader(process)
+    val stdout = AtomicReference("")
+    val stdoutDone = CountDownLatch(1)
+    Thread
+        .ofVirtual()
+        .name("trier-node-process-stdout")
+        .start {
+            try {
+                stdout.set(BufferedReader(InputStreamReader(process.inputStream, StandardCharsets.UTF_8)).readText())
+            } finally {
+                stdoutDone.countDown()
+            }
+        }
+
+    val completed =
+        try {
+            process.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
+        } catch (error: InterruptedException) {
+            Thread.currentThread().interrupt()
+            process.destroyForcibly()
+            throw IllegalStateException("Interrupted while running Trier $description.", error)
+        }
+
+    if (!completed) {
+        process.destroyForcibly()
+        throw IllegalStateException("Trier $description did not finish within ${timeoutMillis}ms.")
+    }
+
+    stdoutDone.await(1, TimeUnit.SECONDS)
+    val output = stdout.get().trim()
+    if (process.exitValue() != 0) {
+        val stderr =
+            synchronized(stderrTail) {
+                stderrTail.toString().trim()
+            }.ifBlank { "No stderr output from Trier $description." }
+        throw IllegalStateException("Trier $description failed. $stderr")
+    }
+
+    return output
 }
 
 internal fun mapLocalPathToTargetPath(
