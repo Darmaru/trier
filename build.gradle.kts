@@ -163,14 +163,16 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Docker runtime follow-up and diagnostics.</strong></p>
+            <p><strong>Tailwind context diagnostics.</strong></p>
             <ul>
-                <li>Reports the actual Node.js version in the runtime test and recommends Node.js 22 for Docker/remote
-                runtimes.</li>
-                <li>Avoids surfacing a JetBrains Tailwind CSS LSP upload-root error as a Trier save failure when the
-                document was already saved successfully.</li>
-                <li>Improves quoted object-key handling in configured JS/TS helpers and refreshes framework regression
-                coverage.</li>
+                <li>Improves Tailwind sorter failure diagnostics with the current file, resolved stylesheet/config
+                paths, and guidance for manual path configuration.</li>
+                <li>Labels Tailwind stylesheet/config paths as manual, auto-detected, or not found in diagnostics and
+                runtime test reports.</li>
+                <li>Adds bounded Tailwind CDN detection for diagnostics, covering both the legacy CDN URL and the
+                Tailwind v4 <code>@tailwindcss/browser</code> CDN URL.</li>
+                <li>Keeps full Tailwind sorter diagnostics in folder dry-run failure reports instead of truncating
+                them to the first error line.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

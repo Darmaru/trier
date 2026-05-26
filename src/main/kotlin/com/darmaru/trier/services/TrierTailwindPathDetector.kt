@@ -21,9 +21,12 @@ internal object TrierTailwindPathDetector {
     private const val MAX_STYLESHEET_SEARCH_DEPTH = 8
     private const val MAX_STYLESHEET_FILES_TO_READ = 500
     private const val MAX_STYLESHEET_CHARS_TO_READ = 1024 * 1024
+    private const val MAX_CDN_SEARCH_DEPTH = 8
+    private const val MAX_CDN_FILES_TO_READ = 1_000
 
     private val configCache = ConcurrentHashMap<String, String>()
     private val stylesheetCache = ConcurrentHashMap<String, String>()
+    private val cdnCache = ConcurrentHashMap<String, Boolean>()
 
     private val configFileNames =
         listOf(
@@ -84,6 +87,21 @@ internal object TrierTailwindPathDetector {
     private val tailwindPluginPattern = Regex("""@plugin\s+["']@tailwindcss(?:/[^"']*)?["']""")
     private val tailwindDirectivePattern = Regex("""@tailwind\s+(base|components|utilities)\b""")
     private val tailwindConfigPattern = Regex("""@config\s+["'][^"']+["']""")
+    private val tailwindCdnPattern =
+        Regex("""cdn\.tailwindcss\.com|cdn\.jsdelivr\.net/npm/@tailwindcss/browser(?:@[^"'<\s]+)?""")
+    private val cdnSearchExtensions =
+        setOf(
+            "html",
+            "htm",
+            "php",
+            "blade.php",
+            "vue",
+            "astro",
+            "svelte",
+            "twig",
+            "njk",
+            "liquid",
+        )
 
     fun detect(
         project: Project,
@@ -104,6 +122,21 @@ internal object TrierTailwindPathDetector {
     internal fun clearCachesForTests() {
         configCache.clear()
         stylesheetCache.clear()
+        cdnCache.clear()
+    }
+
+    fun detectTailwindCdn(
+        project: Project,
+        contextPath: String?,
+    ): Boolean {
+        val projectBase = project.basePath?.let(::safePath)?.takeIf { Files.isDirectory(it) }
+        val context = contextPath?.let(::safePath)
+        val key = cacheKey(projectBase, context)
+        cdnCache[key]?.let { return it }
+
+        val detected = context?.let(::containsTailwindCdn) == true || findTailwindCdnReference(projectBase)
+        cdnCache[key] = detected
+        return detected
     }
 
     private fun config(
@@ -220,7 +253,7 @@ internal object TrierTailwindPathDetector {
             return false
         }
 
-        val text = readStylesheetPrefix(path) ?: return false
+        val text = readFilePrefix(path) ?: return false
 
         return tailwindImportPattern.containsMatchIn(text) ||
             tailwindPluginPattern.containsMatchIn(text) ||
@@ -228,7 +261,73 @@ internal object TrierTailwindPathDetector {
             tailwindConfigPattern.containsMatchIn(text)
     }
 
-    private fun readStylesheetPrefix(path: Path): String? =
+    private fun containsTailwindCdn(path: Path): Boolean {
+        if (!Files.isRegularFile(path)) {
+            return false
+        }
+        return readFilePrefix(path)?.let(tailwindCdnPattern::containsMatchIn) == true
+    }
+
+    private fun findTailwindCdnReference(projectBase: Path?): Boolean {
+        val root = projectBase ?: return false
+        if (!Files.isDirectory(root)) {
+            return false
+        }
+
+        var found = false
+        var filesRead = 0
+        runCatching {
+            Files.walkFileTree(
+                root,
+                object : SimpleFileVisitor<Path>() {
+                    override fun preVisitDirectory(
+                        dir: Path,
+                        attrs: BasicFileAttributes,
+                    ): FileVisitResult {
+                        if (found) {
+                            return FileVisitResult.TERMINATE
+                        }
+                        if (dir != root && dir.name in ignoredDirectories) {
+                            return FileVisitResult.SKIP_SUBTREE
+                        }
+                        if (root.relativize(dir).nameCount > MAX_CDN_SEARCH_DEPTH) {
+                            return FileVisitResult.SKIP_SUBTREE
+                        }
+                        return FileVisitResult.CONTINUE
+                    }
+
+                    override fun visitFile(
+                        file: Path,
+                        attrs: BasicFileAttributes,
+                    ): FileVisitResult {
+                        if (found || !attrs.isRegularFile || !isCdnSearchCandidate(file)) {
+                            return FileVisitResult.CONTINUE
+                        }
+                        filesRead++
+                        if (filesRead > MAX_CDN_FILES_TO_READ) {
+                            return FileVisitResult.TERMINATE
+                        }
+                        if (containsTailwindCdn(file)) {
+                            found = true
+                            return FileVisitResult.TERMINATE
+                        }
+                        return FileVisitResult.CONTINUE
+                    }
+
+                    override fun visitFileFailed(
+                        file: Path,
+                        exc: IOException,
+                    ): FileVisitResult = FileVisitResult.CONTINUE
+                },
+            )
+        }
+        return found
+    }
+
+    private fun isCdnSearchCandidate(path: Path): Boolean =
+        cdnSearchExtensions.any { extension -> path.name.endsWith(".$extension") }
+
+    private fun readFilePrefix(path: Path): String? =
         runCatching {
             Files.newBufferedReader(path, StandardCharsets.UTF_8).use { reader ->
                 val buffer = CharArray(MAX_STYLESHEET_CHARS_TO_READ)

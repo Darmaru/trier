@@ -754,6 +754,26 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(config.toString(), settings.tailwindConfig)
     }
 
+    fun testDetectsLegacyTailwindCdnInContextFile() {
+        val root = createTempDirectory("trier-tailwind-cdn-test")
+        val file = root / "layout.blade.php"
+        file.writeText("""<script src="https://cdn.tailwindcss.com"></script>""")
+
+        assertTrue(TrierTailwindPathDetector.detectTailwindCdn(project, file.toString()))
+    }
+
+    fun testDetectsTailwindBrowserCdnInProjectTemplates() {
+        val basePath = checkNotNull(project.basePath)
+        val root =
+            java.nio.file.Path
+                .of(basePath)
+        val file = root / "templates/page.blade.php"
+        file.parent.createDirectories()
+        file.writeText("""<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>""")
+
+        assertTrue(TrierTailwindPathDetector.detectTailwindCdn(project, null))
+    }
+
     fun testManualActionSortsOnlySelection() {
         val text = """<div class="aaa text-center p-4 flex bg-red-500 font-bold bbb"></div>"""
         myFixture.configureByText("test.html", text)

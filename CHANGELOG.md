@@ -2,6 +2,15 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.2.7] - 2026-05-27
+
+### Changed
+
+- Improved Tailwind sorter failure diagnostics with the current file, resolved stylesheet/config paths, and guidance for manual path configuration or CDN-only projects.
+- Added manual/auto-detected/not-found source labels to Tailwind context diagnostics and runtime reports.
+- Added bounded Tailwind CDN detection for diagnostics, covering both the legacy `cdn.tailwindcss.com` URL and the Tailwind v4 `@tailwindcss/browser` CDN URL.
+- Kept full Tailwind sorter diagnostics in folder dry-run failure reports instead of truncating them to the first error line.
+
 ## [0.2.6] - 2026-05-20
 
 ### Changed

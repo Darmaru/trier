@@ -71,6 +71,11 @@ data class FolderSortChange(
     val sortedText: String? = null,
 )
 
+private data class ResolvedTailwindProjectContext(
+    val settings: TrierResolvedSettings,
+    val diagnostics: TrierTailwindSorterContext,
+)
+
 @Service(Service.Level.APP)
 class TrierSortService {
     private val guard: TrierExecutionGuard
@@ -315,8 +320,8 @@ class TrierSortService {
         text: String,
         filePath: String?,
     ): String {
-        val settings = resolveTailwindProjectPaths(project, filePath)
-        return processWithPsi(project, text, filePath, settings)
+        val context = resolveTailwindProjectContext(project, filePath)
+        return processWithPsi(project, text, filePath, context)
     }
 
     private fun sortFolderInternal(
@@ -502,14 +507,20 @@ class TrierSortService {
             } catch (error: ProcessCanceledException) {
                 throw error
             } catch (error: Exception) {
-                failures +=
-                    FolderSortFailure(
-                        file.path,
+                val message =
+                    if (error is TrierTailwindSorterException) {
+                        error.message.orEmpty()
+                    } else {
                         ExceptionUtil
                             .getThrowableText(error)
                             .lineSequence()
                             .firstOrNull()
-                            .orEmpty(),
+                            .orEmpty()
+                    }
+                failures +=
+                    FolderSortFailure(
+                        file.path,
+                        message,
                     )
             }
         }
@@ -613,11 +624,11 @@ class TrierSortService {
         project: Project,
         text: String,
         filePath: String?,
-        settings: TrierResolvedSettings,
+        context: ResolvedTailwindProjectContext,
         limitRange: TextRange? = null,
         useFallback: Boolean = true,
     ): String {
-        val sorter = { values: List<String> -> sortClassAttributes(project, filePath, values, settings) }
+        val sorter = { values: List<String> -> sortClassAttributes(project, values, context) }
         return ApplicationManager.getApplication().runReadAction<String> {
             val virtualFile = filePath?.let { LocalFileSystem.getInstance().findFileByPath(it) }
             val psiFile =
@@ -630,11 +641,11 @@ class TrierSortService {
                 TrierPsiProcessor(
                     sorter,
                     TrierTextProcessor(sorter),
-                ).process(psiFile, text, settings, limitRange, useFallback)
+                ).process(psiFile, text, context.settings, limitRange, useFallback)
             } else if (!useFallback) {
                 text
             } else {
-                TrierTextProcessor(sorter).process(text, settings)
+                TrierTextProcessor(sorter).process(text, context.settings)
             }
         }
     }
@@ -645,8 +656,8 @@ class TrierSortService {
         filePath: String?,
         range: TextRange,
     ): String {
-        val settings = resolveTailwindProjectPaths(project, filePath)
-        val sorter = { values: List<String> -> sortClassAttributes(project, filePath, values, settings) }
+        val context = resolveTailwindProjectContext(project, filePath)
+        val sorter = { values: List<String> -> sortClassAttributes(project, values, context) }
         val selectionText = range.substring(text)
 
         if (looksLikePlainClassList(selectionText)) {
@@ -656,12 +667,12 @@ class TrierSortService {
             }
         }
 
-        val psiUpdated = processWithPsi(project, text, filePath, settings, range, useFallback = false)
+        val psiUpdated = processWithPsi(project, text, filePath, context, range, useFallback = false)
         if (psiUpdated != text) {
             return psiUpdated
         }
 
-        val updatedSelectionText = TrierTextProcessor(sorter).process(selectionText, settings)
+        val updatedSelectionText = TrierTextProcessor(sorter).process(selectionText, context.settings)
         return if (updatedSelectionText == selectionText) {
             text
         } else {
@@ -897,16 +908,15 @@ class TrierSortService {
 
     private fun sortClassAttributes(
         project: Project,
-        filePath: String?,
         values: List<String>,
-        settings: TrierResolvedSettings,
+        context: ResolvedTailwindProjectContext,
     ): List<String> {
         if (values.isEmpty()) {
             return values
         }
 
         testSortOverride?.let { override ->
-            return override(project, filePath, values, settings)
+            return override(project, context.diagnostics.filePath, values, context.settings)
         }
 
         val projectBase = project.basePath ?: guessBasePath()
@@ -914,30 +924,41 @@ class TrierSortService {
             TrierNodeRequest(
                 moduleBase = helperService.bundledRuntimePath().absolutePathString(),
                 base = projectBase,
-                filepath = filePath,
-                configPath = settings.tailwindConfig,
-                stylesheetPath = settings.tailwindStylesheet,
-                preserveWhitespace = settings.tailwindPreserveWhitespace,
-                preserveDuplicates = settings.tailwindPreserveDuplicates,
+                filepath = context.diagnostics.filePath,
+                configPath = context.settings.tailwindConfig,
+                stylesheetPath = context.settings.tailwindStylesheet,
+                preserveWhitespace = context.settings.tailwindPreserveWhitespace,
+                preserveDuplicates = context.settings.tailwindPreserveDuplicates,
                 values = values,
             )
-        return runNode(project, request, settings)
+        return runNode(project, request, context.settings, context.diagnostics)
     }
 
     private fun runNode(
         project: Project,
         request: TrierNodeRequest,
         settings: TrierResolvedSettings,
+        diagnostics: TrierTailwindSorterContext,
     ): List<String> {
         val runtime = resolveNodeRuntime(project, settings)
-        return workerService.sort(runtime, helperService.helperScriptPath(), request)
+        return try {
+            workerService.sort(runtime, helperService.helperScriptPath(), request)
+        } catch (error: ProcessCanceledException) {
+            throw error
+        } catch (error: Exception) {
+            throw TrierTailwindSorterException(
+                buildTailwindSorterFailureMessage(error, diagnostics),
+                error,
+            )
+        }
     }
 
     internal fun testRuntime(
         project: Project,
         settings: TrierResolvedSettings,
     ): TrierRuntimeReport {
-        val resolvedSettings = resolveTailwindProjectPaths(project, null, settings)
+        val context = resolveTailwindProjectContext(project, null, settings)
+        val resolvedSettings = context.settings
         val runtime = resolveNodeRuntime(project, resolvedSettings)
         val runtimePath = helperService.bundledRuntimePath()
         val scriptPath = helperService.helperScriptPath()
@@ -953,32 +974,72 @@ class TrierSortService {
                 preserveDuplicates = resolvedSettings.tailwindPreserveDuplicates,
                 values = listOf("text-center p-4 flex"),
             )
-        val sampleResult = workerService.sort(runtime, scriptPath, request).singleOrNull().orEmpty()
+        val sampleResult =
+            try {
+                workerService.sort(runtime, scriptPath, request).singleOrNull().orEmpty()
+            } catch (error: ProcessCanceledException) {
+                throw error
+            } catch (error: Exception) {
+                throw TrierTailwindSorterException(
+                    buildTailwindSorterFailureMessage(error, context.diagnostics),
+                    error,
+                )
+            }
         return TrierRuntimeReport(
             node = runtime.presentableName,
             nodeVersion = nodeVersion,
             bundledRuntime = runtimePath.absolutePathString(),
             tailwindStylesheet = resolvedSettings.tailwindStylesheet,
+            tailwindStylesheetSource = context.diagnostics.stylesheetSource,
             tailwindConfig = resolvedSettings.tailwindConfig,
+            tailwindConfigSource = context.diagnostics.configSource,
+            tailwindCdnDetected = context.diagnostics.tailwindCdnDetected,
             sampleSortResult = sampleResult,
         )
     }
 
-    private fun resolveTailwindProjectPaths(
+    private fun resolveTailwindProjectContext(
         project: Project,
         filePath: String?,
         settings: TrierResolvedSettings = TrierSettingsState.getInstance().snapshot().toResolvedSettings(),
-    ): TrierResolvedSettings {
-        if (settings.tailwindStylesheet != null && settings.tailwindConfig != null) {
-            return settings
-        }
-
+    ): ResolvedTailwindProjectContext {
         val detectedPaths = TrierTailwindPathDetector.detect(project, filePath)
-        return settings.copy(
-            tailwindStylesheet = settings.tailwindStylesheet ?: detectedPaths.stylesheet,
-            tailwindConfig = settings.tailwindConfig ?: detectedPaths.config,
+        val resolvedSettings =
+            settings.copy(
+                tailwindStylesheet = settings.tailwindStylesheet ?: detectedPaths.stylesheet,
+                tailwindConfig = settings.tailwindConfig ?: detectedPaths.config,
+            )
+        return ResolvedTailwindProjectContext(
+            settings = resolvedSettings,
+            diagnostics =
+                TrierTailwindSorterContext(
+                    filePath = filePath,
+                    stylesheetPath = resolvedSettings.tailwindStylesheet,
+                    stylesheetSource =
+                        tailwindPathSource(
+                            configuredPath = settings.tailwindStylesheet,
+                            detectedPath = detectedPaths.stylesheet,
+                        ),
+                    configPath = resolvedSettings.tailwindConfig,
+                    configSource =
+                        tailwindPathSource(
+                            configuredPath = settings.tailwindConfig,
+                            detectedPath = detectedPaths.config,
+                        ),
+                    tailwindCdnDetected = TrierTailwindPathDetector.detectTailwindCdn(project, filePath),
+                ),
         )
     }
+
+    private fun tailwindPathSource(
+        configuredPath: String?,
+        detectedPath: String?,
+    ): TrierTailwindPathSource =
+        when {
+            configuredPath != null -> TrierTailwindPathSource.MANUAL
+            detectedPath != null -> TrierTailwindPathSource.AUTO_DETECTED
+            else -> TrierTailwindPathSource.NOT_FOUND
+        }
 
     private fun saveDocumentAfterApply(document: Document) {
         val documentManager = FileDocumentManager.getInstance()

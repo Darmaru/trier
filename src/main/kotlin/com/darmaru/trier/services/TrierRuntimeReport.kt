@@ -5,22 +5,24 @@ internal data class TrierRuntimeReport(
     val nodeVersion: String,
     val bundledRuntime: String,
     val tailwindStylesheet: String?,
+    val tailwindStylesheetSource: TrierTailwindPathSource = TrierTailwindPathSource.NOT_FOUND,
     val tailwindConfig: String?,
+    val tailwindConfigSource: TrierTailwindPathSource = TrierTailwindPathSource.NOT_FOUND,
+    val tailwindCdnDetected: Boolean = false,
     val sampleSortResult: String,
 ) {
     fun rows(): List<TrierRuntimeReportRow> =
-        listOf(
-            TrierRuntimeReportRow("Node", node),
-            TrierRuntimeReportRow("Node version", nodeVersion),
-            TrierRuntimeReportRow("Bundled runtime", bundledRuntime),
-            TrierRuntimeReportRow("Tailwind stylesheet", tailwindStylesheet ?: AUTO_DETECT_NOT_FOUND),
-            TrierRuntimeReportRow("Tailwind config", tailwindConfig ?: AUTO_DETECT_NOT_FOUND),
-            TrierRuntimeReportRow("Sample sort result", sampleSortResult),
-        )
-
-    companion object {
-        private const val AUTO_DETECT_NOT_FOUND = "auto-detect did not find one"
-    }
+        buildList {
+            add(TrierRuntimeReportRow("Node", node))
+            add(TrierRuntimeReportRow("Node version", nodeVersion))
+            add(TrierRuntimeReportRow("Bundled runtime", bundledRuntime))
+            add(TrierRuntimeReportRow("Tailwind stylesheet", tailwindStylesheetSource.describe(tailwindStylesheet)))
+            add(TrierRuntimeReportRow("Tailwind config", tailwindConfigSource.describe(tailwindConfig)))
+            if (tailwindCdnDetected) {
+                add(TrierRuntimeReportRow("Tailwind CDN", "detected"))
+            }
+            add(TrierRuntimeReportRow("Sample sort result", sampleSortResult))
+        }
 }
 
 internal data class TrierRuntimeReportRow(

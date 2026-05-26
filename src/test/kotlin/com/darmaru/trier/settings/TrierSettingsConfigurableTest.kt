@@ -225,6 +225,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
                     bundledRuntime = "/tmp/trier-node-runtime",
                     tailwindStylesheet = null,
                     tailwindConfig = null,
+                    tailwindCdnDetected = true,
                     sampleSortResult = "flex p-4 text-center",
                 ),
             )
@@ -234,6 +235,8 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
         assertTrue(html.contains("<strong>Sample sort result:</strong>"))
         assertTrue(html.contains("Docker node:22"))
         assertTrue(html.contains("v22.16.0"))
+        assertTrue(html.contains("auto-detect did not find one"))
+        assertTrue(html.contains("<strong>Tailwind CDN:</strong>"))
         assertTrue(html.contains("flex p-4 text-center"))
     }
 

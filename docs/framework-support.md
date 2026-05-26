@@ -159,6 +159,7 @@ Investigate:
 
 - Keep CI deterministic and verifier stable.
 - Keep Docker/remote runtime diagnostics clear after the 0.2.5 runtime expansion.
+- Improve Tailwind stylesheet/config diagnostics for sorter initialization failures.
 - Keep this framework roadmap aligned with the tested support matrix.
 - Extract dry-run apply logic into testable services where useful.
 - Add a dry-run apply result model for UI summaries.
