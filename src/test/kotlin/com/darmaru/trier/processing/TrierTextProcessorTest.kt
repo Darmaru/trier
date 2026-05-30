@@ -239,6 +239,22 @@ class TrierTextProcessorTest {
     }
 
     @Test
+    fun `malformed dynamic class binding with earlier valid fragment is no-op`() {
+        val processor = processor()
+        val input =
+            """
+            <div :class="[
+              'text-center p-4 flex bg-red-500 font-bold',
+              isActive && 'font-bold flex p-4
+            ]"></div>
+            """.trimIndent()
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
     fun `sorts quoted string inside dynamic class attribute expression`() {
         val ranges = TrierPsiProcessor.findQuotedLiteralContentRanges("'text-center p-4 flex bg-red-500 font-bold'")
 

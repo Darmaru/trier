@@ -46,6 +46,9 @@ class TrierTextProcessor(
                 if (value.contains('<')) {
                     return@flatMap emptyList()
                 }
+                if (isDynamicClassAttributeName(name) && TrierPsiProcessor.hasUnterminatedQuotedLiteral(value)) {
+                    return@flatMap emptyList()
+                }
                 val valueGroup = match.groups[3] ?: return@flatMap emptyList()
                 val valueStart = valueGroup.range.first
                 val quotedRanges = TrierPsiProcessor.findQuotedLiteralContentRanges(value)

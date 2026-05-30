@@ -126,6 +126,9 @@ class TrierPsiProcessor(
         if (value.contains('<')) {
             return null
         }
+        if (isDynamicClassAttributeName(attribute.name) && hasUnterminatedQuotedLiteral(value)) {
+            return null
+        }
         val valueElement = attribute.valueElement ?: return null
         val absoluteValueRange = attribute.valueTextRange.shiftRight(valueElement.textRange.startOffset)
         val valueStart = absoluteValueRange.startOffset
@@ -400,6 +403,34 @@ class TrierPsiProcessor(
                 index = end + 1
             }
             return ranges
+        }
+
+        internal fun hasUnterminatedQuotedLiteral(text: String): Boolean {
+            var index = 0
+            while (index < text.length) {
+                val quote = text[index]
+                if (quote != '\'' && quote != '"' && quote != '`') {
+                    if (quote == '/' && index + 1 < text.length) {
+                        when (text[index + 1]) {
+                            '/' -> {
+                                index = text.indexOf('\n', index + 2).takeIf { it >= 0 } ?: text.length
+                                continue
+                            }
+                            '*' -> {
+                                val commentEnd = text.indexOf("*/", index + 2)
+                                index = if (commentEnd >= 0) commentEnd + 2 else text.length
+                                continue
+                            }
+                        }
+                    }
+                    index++
+                    continue
+                }
+
+                val end = findQuotedLiteralEnd(text, index, quote) ?: return true
+                index = end + 1
+            }
+            return false
         }
 
         private fun findQuotedLiteralEnd(

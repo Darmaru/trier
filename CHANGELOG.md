@@ -2,6 +2,20 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.3.0] - 2026-05-30
+
+### Added
+
+- Promoted Vue single-file component support to Supported after adding dedicated fixture coverage and completing a manual smoke pass.
+- Added a dedicated Vue fixture suite covering template class bindings, comment preservation, `<script setup>` helpers, `<style>` `@apply`, and malformed no-op behavior.
+- Added a shared sorting fixture harness using `fixtures/sorting/<area>/<case>/input.<ext>` and `expected.<ext>` so future framework regression suites can use the same layout.
+- Added HTML and CSS sorting fixtures for standard class attributes, custom attributes, `@apply`, and malformed no-op cases.
+- Added JSX and TSX sorting fixtures for `className` expressions, template literals, ternaries, arrays/object keys, and configured helper calls.
+
+### Fixed
+
+- Kept dynamic class bindings as no-ops when an earlier sortable quoted fragment is followed by an unterminated string literal.
+
 ## [0.2.7] - 2026-05-27
 
 ### Changed

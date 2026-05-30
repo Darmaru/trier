@@ -163,16 +163,17 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Tailwind context diagnostics.</strong></p>
+            <p><strong>Vue support and fixture coverage.</strong></p>
             <ul>
-                <li>Improves Tailwind sorter failure diagnostics with the current file, resolved stylesheet/config
-                paths, and guidance for manual path configuration.</li>
-                <li>Labels Tailwind stylesheet/config paths as manual, auto-detected, or not found in diagnostics and
-                runtime test reports.</li>
-                <li>Adds bounded Tailwind CDN detection for diagnostics, covering both the legacy CDN URL and the
-                Tailwind v4 <code>@tailwindcss/browser</code> CDN URL.</li>
-                <li>Keeps full Tailwind sorter diagnostics in folder dry-run failure reports instead of truncating
-                them to the first error line.</li>
+                <li>Promotes Vue single-file component support to Supported after dedicated fixture coverage and a
+                manual smoke pass.</li>
+                <li>Adds Vue fixtures for template class bindings, dynamic <code>:class</code> and
+                <code>v-bind:class</code> bindings, nested arrays/objects, <code>&lt;script setup&gt;</code> helpers,
+                <code>&lt;style&gt;</code> <code>@apply</code>, formatting preservation, and malformed no-op cases.</li>
+                <li>Adds a shared sorting fixture harness for future framework regression suites.</li>
+                <li>Adds HTML, CSS, JSX, and TSX sorting fixtures for the existing supported syntax matrix.</li>
+                <li>Keeps dynamic class bindings as no-ops when an earlier sortable quoted fragment is followed by an
+                unterminated string literal.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

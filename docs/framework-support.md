@@ -29,7 +29,7 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | HTML/XML | Supported | `class="..."`, custom attributes, editor/folder/dry-run workflows, basic malformed no-op coverage | Broader fixture coverage for partial or broken markup. |
 | JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, multiline and nested helper calls, quoted helper object keys | Broader real-world helper composition fixtures. |
 | CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows, basic malformed no-op coverage | More nested at-rule and malformed declaration tests. |
-| Vue SFC | Partial | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation | Dedicated fixture suite and a final manual smoke pass before promotion to Supported. |
+| Vue SFC | Supported | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation, dedicated fixture coverage, advanced malformed binding no-op coverage, manual smoke pass | Broader real-world fixture coverage as new Vue patterns are reported. |
 | Svelte | Best effort | Folder globs include `.svelte`; fallback may sort simple static strings; unsupported `class:` directives have no-op coverage | `class={...}`, reactive expressions, script helper calls, style blocks. |
 | Astro | Best effort | Folder globs include `.astro`; fallback may sort simple static strings; unsupported `class:list` has no-op coverage | JSX-like expressions, frontmatter helper calls, component attributes. |
 | Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments; unsupported `[class.foo]` has no-op coverage | `[ngClass]` arrays/objects, template expressions, custom pipes, formatting preservation. |
@@ -98,7 +98,9 @@ Test and support:
 - [x] `<style>` `@apply`.
 - [x] Formatting preservation around comments and multiline bindings.
 - [x] Basic malformed/no-op coverage for dynamic bindings.
-- [ ] Dedicated fixture suite and advanced malformed binding no-op cases.
+- [x] Dedicated fixture suite for covered Vue syntax.
+- [x] Advanced malformed binding no-op cases.
+- [x] Final manual smoke pass before promotion to Supported.
 
 ### Svelte
 
@@ -168,7 +170,7 @@ Investigate:
 
 ### 0.3.0 Framework Coverage
 
-- Promote Vue to Supported if gaps are closed.
+- Promote Vue to Supported.
 - Add Svelte and Astro fixture suites.
 - Document Svelte/Astro as Partial only after tests exist.
 - Keep folder globs broad but support claims narrow.

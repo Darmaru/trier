@@ -1,0 +1,1 @@
+const view = <div className={["flex bg-red-500 p-4 text-center font-bold", { "flex p-4 font-bold": active }]} />;

@@ -173,6 +173,8 @@ Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, T
 
 Vue support is enabled through the optional bundled dependency `org.jetbrains.plugins.vue`.
 
+Vue is covered by dedicated fixtures for static template classes, dynamic `:class` / `v-bind:class` bindings, nested arrays/objects, `<script setup>` helpers, `<style>` `@apply`, formatting preservation, and malformed no-op cases.
+
 Astro, Svelte, and PHP files can be included in folder globs and may work through the fallback text processor, but they are best-effort in the current test matrix.
 
 See [Framework Support Roadmap](docs/framework-support.md) for the working support matrix and planned stabilization steps.
