@@ -471,6 +471,61 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         )
     }
 
+    fun testSortFolderDryRunReportsSupportedSvelteAndAstroChanges() {
+        val root = createTempDirectory("trier-folder-svelte-astro-dry-run-test")
+        val svelteFile = root / "Component.svelte"
+        val astroFile = root / "Component.astro"
+        val svelteOriginal =
+            """
+            <button class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}>
+              Save
+            </button>
+            """.trimIndent()
+        val astroOriginal =
+            """
+            <button class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}>
+              Save
+            </button>
+            <Card className={"text-center p-4 flex bg-red-500 font-bold"} />
+            """.trimIndent()
+        svelteFile.writeText(svelteOriginal)
+        astroFile.writeText(astroOriginal)
+
+        val report =
+            TrierSortService
+                .getInstance()
+                .sortFolder(project, root.toString(), "**/*.{svelte,astro}", dryRun = true)
+
+        assertEquals(svelteOriginal, svelteFile.readText())
+        assertEquals(astroOriginal, astroFile.readText())
+        assertEquals(2, report.scanned)
+        assertEquals(2, report.matched)
+        assertEquals(2, report.changed)
+        assertEquals(0, report.updated)
+        assertEquals(0, report.failed)
+        assertEquals(
+            listOf("Component.astro", "Component.svelte"),
+            report.changes.map { it.relativePath }.sorted(),
+        )
+        assertEquals(
+            """
+            <button class={active ? "flex bg-red-500 p-4 text-center font-bold" : "flex p-4 font-bold"}>
+              Save
+            </button>
+            """.trimIndent(),
+            report.changes.single { it.relativePath == "Component.svelte" }.sortedText,
+        )
+        assertEquals(
+            """
+            <button class={active ? "flex bg-red-500 p-4 text-center font-bold" : "flex p-4 font-bold"}>
+              Save
+            </button>
+            <Card className={"flex bg-red-500 p-4 text-center font-bold"} />
+            """.trimIndent(),
+            report.changes.single { it.relativePath == "Component.astro" }.sortedText,
+        )
+    }
+
     fun testSortFolderReportsInvalidGlobPattern() {
         val root = createTempDirectory("trier-folder-invalid-glob-test")
         val report = TrierSortService.getInstance().sortFolder(project, root.toString(), "[", dryRun = true)
@@ -527,6 +582,40 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
             """<div class="flex bg-red-500 p-4 text-center font-bold"></div>""",
             report.changes.single().sortedText,
         )
+    }
+
+    fun testSortFileAppliesSupportedSvelteAndAstroChanges() {
+        val root = createTempDirectory("trier-file-svelte-astro-apply-test")
+        val svelteFile = root / "Component.svelte"
+        val astroFile = root / "Component.astro"
+        svelteFile.writeText(
+            """<button class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}></button>""",
+        )
+        astroFile.writeText("""<Card className={"text-center p-4 flex bg-red-500 font-bold"} />""")
+
+        val localFileSystem =
+            com.intellij.openapi.vfs.LocalFileSystem
+                .getInstance()
+        val svelteReport =
+            TrierSortService.getInstance().sortFile(
+                project,
+                localFileSystem.refreshAndFindFileByNioFile(svelteFile)!!,
+            )
+        val astroReport =
+            TrierSortService.getInstance().sortFile(
+                project,
+                localFileSystem.refreshAndFindFileByNioFile(astroFile)!!,
+            )
+
+        assertEquals(
+            """<button class={active ? "flex bg-red-500 p-4 text-center font-bold" : "flex p-4 font-bold"}></button>""",
+            svelteFile.readText(),
+        )
+        assertEquals("""<Card className={"flex bg-red-500 p-4 text-center font-bold"} />""", astroFile.readText())
+        assertEquals(1, svelteReport.changed)
+        assertEquals(1, svelteReport.updated)
+        assertEquals(1, astroReport.changed)
+        assertEquals(1, astroReport.updated)
     }
 
     fun testSortFileSkipsDirectory() {

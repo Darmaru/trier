@@ -29,6 +29,18 @@ internal object SortingFixtureSupport {
         assertEquals("Unexpected output for fixture '${sortingFixture.area}/${sortingFixture.name}'", expected, result)
     }
 
+    fun assertTextFixture(
+        sortingFixture: SortingFixture,
+        settings: TrierResolvedSettings,
+    ) {
+        val input = text(sortingFixture.inputPath)
+        val expected = text(sortingFixture.expectedPath)
+
+        val result = textProcessor().process(input, settings)
+
+        assertEquals("Unexpected output for fixture '${sortingFixture.area}/${sortingFixture.name}'", expected, result)
+    }
+
     private fun text(path: String): String =
         javaClass.classLoader
             .getResource(path)
@@ -38,8 +50,10 @@ internal object SortingFixtureSupport {
     private fun processor(): TrierPsiProcessor =
         TrierPsiProcessor(
             sortStrings = { values -> values.map(::sortClassesStub) },
-            fallbackTextProcessor = TrierTextProcessor { values -> values.map(::sortClassesStub) },
+            fallbackTextProcessor = textProcessor(),
         )
+
+    private fun textProcessor(): TrierTextProcessor = TrierTextProcessor { values -> values.map(::sortClassesStub) }
 
     private fun sortClassesStub(value: String): String {
         val order =

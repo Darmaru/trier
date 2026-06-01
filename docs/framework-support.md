@@ -30,8 +30,8 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, multiline and nested helper calls, quoted helper object keys | Broader real-world helper composition fixtures. |
 | CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows, basic malformed no-op coverage | More nested at-rule and malformed declaration tests. |
 | Vue SFC | Supported | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation, dedicated fixture coverage, advanced malformed binding no-op coverage, manual smoke pass | Broader real-world fixture coverage as new Vue patterns are reported. |
-| Svelte | Best effort | Folder globs include `.svelte`; fallback may sort simple static strings; unsupported `class:` directives have no-op coverage | `class={...}`, reactive expressions, script helper calls, style blocks. |
-| Astro | Best effort | Folder globs include `.astro`; fallback may sort simple static strings; unsupported `class:list` has no-op coverage | JSX-like expressions, frontmatter helper calls, component attributes. |
+| Svelte | Partial | Folder globs include `.svelte`; fallback sorts static `class`, quoted fragments in `class={...}`, configured script helper calls, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run and file apply coverage exists | Reactive shorthand patterns, safe template literal interpolation support, more formatting preservation. |
+| Astro | Partial | Folder globs include `.astro`; fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, configured frontmatter helper calls, style `@apply`; unsupported `class:list` and interpolated template literals have no-op fixture coverage; folder dry-run and file apply coverage exists | `class:list` support, component attribute variants, safe template literal interpolation support, richer frontmatter expressions. |
 | Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments; unsupported `[class.foo]` has no-op coverage | `[ngClass]` arrays/objects, template expressions, custom pipes, formatting preservation. |
 | Laravel Blade / PHP | Best effort | Folder globs include `.php`; fallback may sort simple static strings; unsupported `@class` has no-op coverage | PHP arrays, Blade component attributes, escaped directives, mixed PHP/HTML no-op behavior. |
 | Other template engines | Planned | None | Needs demand-driven investigation. |
@@ -108,13 +108,14 @@ Target level: Partial, then Supported if PSI support is stable enough.
 
 Investigate:
 
-- Static `class="..."`.
-- `class={"..."}`.
+- [x] Static `class="..."`.
+- [x] `class={"..."}`.
 - Template literals inside attributes.
-- `class:active={condition}` no-op behavior.
-- Helper calls in `<script>`.
-- `<style>` `@apply`.
-- File-level folder dry-run and apply safety.
+- [x] `class:active={condition}` no-op behavior.
+- [x] Helper calls in `<script>`.
+- [x] `<style>` `@apply`.
+- [x] Folder dry-run coverage.
+- [x] File-level apply coverage.
 
 ### Astro
 
@@ -122,12 +123,13 @@ Target level: Partial.
 
 Investigate:
 
-- Static `class="..."`.
-- JSX-like `className` / `class` expressions.
+- [x] Static `class="..."`.
+- [x] JSX-like `className` / `class` expressions.
 - `class:list`.
-- Helper calls in frontmatter.
+- [x] Helper calls in frontmatter.
 - Component attributes.
-- Folder dry-run and apply safety.
+- [x] Folder dry-run coverage.
+- [x] File-level apply coverage.
 
 ### Angular
 

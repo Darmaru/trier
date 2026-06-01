@@ -2,6 +2,13 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.3.1] - 2026-06-01
+
+### Added
+
+- Added Svelte and Astro fallback support and fixture baselines for braced class expressions, configured helper calls, style `@apply`, and unsupported framework-specific no-op syntax.
+- Added no-op coverage for interpolated template literals in braced fallback class attributes.
+
 ## [0.3.0] - 2026-05-30
 
 ### Added

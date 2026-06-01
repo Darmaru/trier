@@ -189,6 +189,58 @@ class TrierTextProcessorTest {
     }
 
     @Test
+    fun `sorts quoted fragments inside braced class attribute expression`() {
+        val processor = processor()
+
+        val result =
+            processor.process(
+                """<div class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}></div>""",
+                settings,
+            )
+
+        assertEquals(
+            """<div class={active ? "flex bg-red-500 p-4 text-center font-bold" : "flex p-4 font-bold"}></div>""",
+            result,
+        )
+    }
+
+    @Test
+    fun `sorts static template literal inside braced class attribute expression`() {
+        val processor = processor()
+
+        val result =
+            processor.process(
+                """<div class={`text-center p-4 flex bg-red-500 font-bold`}></div>""",
+                settings,
+            )
+
+        assertEquals(
+            """<div class={`flex bg-red-500 p-4 text-center font-bold`}></div>""",
+            result,
+        )
+    }
+
+    @Test
+    fun `leaves interpolated template literal inside braced class attribute expression unchanged`() {
+        val processor = processor()
+        val input = """<div class={`text-center ${'$'}{activeClass} p-4 flex bg-red-500 font-bold`}></div>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `malformed braced class attribute expression is no-op`() {
+        val processor = processor()
+        val input = """<div class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4}></div>"""
+
+        val result = processor.process(input, settings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
     fun `leaves unsupported angular class binding unchanged`() {
         val processor = processor()
         val input = """<div [class.active]="isActive"></div>"""

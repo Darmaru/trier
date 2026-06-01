@@ -142,6 +142,8 @@ intellijPlatform {
                 <li>Vue SFC template classes, dynamic <code>:class</code> bindings,
                 <code>&lt;script setup&gt;</code> helper calls, and <code>&lt;style&gt;</code>
                 <code>@apply</code>.</li>
+                <li>Partial fallback coverage for Svelte and Astro static classes, braced class expressions,
+                configured helper calls, and style <code>@apply</code>.</li>
                 <li>CSS/SCSS <code>@apply</code>.</li>
                 <li>Custom attributes and custom class helper functions such as <code>cn</code>, <code>clsx</code>,
                 or tagged template helpers when configured.</li>
@@ -157,23 +159,20 @@ intellijPlatform {
                 extraction, helper startup, and a real sample sort.</li>
             </ul>
             <p>
-                Trier is designed for teams that want reliable Tailwind ordering across HTML, JSX, TSX, Vue, CSS, and
-                related frontend files without giving up their existing IDE formatting workflow.
+                Trier is designed for teams that want reliable Tailwind ordering across HTML, JSX, TSX, Vue, CSS,
+                Svelte, Astro, and related frontend files without giving up their existing IDE formatting workflow.
             </p>
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Vue support and fixture coverage.</strong></p>
+            <p><strong>Svelte and Astro fallback support.</strong></p>
             <ul>
-                <li>Promotes Vue single-file component support to Supported after dedicated fixture coverage and a
-                manual smoke pass.</li>
-                <li>Adds Vue fixtures for template class bindings, dynamic <code>:class</code> and
-                <code>v-bind:class</code> bindings, nested arrays/objects, <code>&lt;script setup&gt;</code> helpers,
-                <code>&lt;style&gt;</code> <code>@apply</code>, formatting preservation, and malformed no-op cases.</li>
-                <li>Adds a shared sorting fixture harness for future framework regression suites.</li>
-                <li>Adds HTML, CSS, JSX, and TSX sorting fixtures for the existing supported syntax matrix.</li>
-                <li>Keeps dynamic class bindings as no-ops when an earlier sortable quoted fragment is followed by an
-                unterminated string literal.</li>
+                <li>Adds partial fallback support for Svelte and Astro static class attributes, braced
+                <code>class={...}</code> / <code>className={...}</code> expressions, configured helper calls, and
+                <code>&lt;style&gt;</code> <code>@apply</code>.</li>
+                <li>Adds Svelte and Astro fixture suites plus folder dry-run and file apply integration coverage.</li>
+                <li>Keeps unsupported Svelte <code>class:</code> directives, Astro <code>class:list</code>, malformed
+                braced expressions, and interpolated template literals as no-ops.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

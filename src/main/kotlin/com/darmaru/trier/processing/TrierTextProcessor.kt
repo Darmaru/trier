@@ -9,6 +9,7 @@ class TrierTextProcessor(
     ): String {
         val candidates = mutableListOf<SortCandidate>()
         candidates += collectAttributeCandidates(text, settings)
+        candidates += collectBracedAttributeCandidates(text, settings)
         candidates += collectApplyCandidates(text)
         candidates += collectTaggedTemplateCandidates(text, settings)
         candidates += collectFunctionCallCandidates(text, settings)
@@ -73,6 +74,49 @@ class TrierTextProcessor(
                     emptyList()
                 }
             }.toList()
+    }
+
+    private fun collectBracedAttributeCandidates(
+        text: String,
+        settings: TrierResolvedSettings,
+    ): List<SortCandidate> {
+        val predicates = buildAttributePredicates(settings.tailwindAttributes)
+        val regex = Regex("""([:@\[\]\w-]+)\s*=\s*\{""")
+        val replacements = mutableListOf<SortCandidate>()
+
+        regex.findAll(text).forEach { match ->
+            val name = match.groupValues[1]
+            if (predicates.none { it(name) }) {
+                return@forEach
+            }
+
+            val expressionStart = match.range.last + 1
+            val expressionEnd = findMatchingBrace(text, expressionStart - 1) ?: return@forEach
+            val expression = text.substring(expressionStart, expressionEnd)
+            if (TrierPsiProcessor.hasUnterminatedQuotedLiteral(expression)) {
+                return@forEach
+            }
+
+            replacements +=
+                TrierPsiProcessor
+                    .findQuotedLiteralContentRanges(expression)
+                    .filterNot { localRange ->
+                        isInterpolatedTemplateLiteral(
+                            expression = expression,
+                            contentStart = localRange.startOffset,
+                            contentEnd = localRange.endOffset,
+                        )
+                    }.map { localRange ->
+                        val start = expressionStart + localRange.startOffset
+                        SortCandidate(
+                            start = start,
+                            end = expressionStart + localRange.endOffset,
+                            originalValue = localRange.substring(expression),
+                        )
+                    }
+        }
+
+        return replacements
     }
 
     private fun collectApplyCandidates(text: String): List<SortCandidate> {
@@ -254,6 +298,37 @@ class TrierTextProcessor(
                 '\'', '"', '`' -> index = findQuotedLiteralEnd(text, index, char) ?: return null
                 '(' -> depth++
                 ')' -> {
+                    depth--
+                    if (depth == 0) {
+                        return index
+                    }
+                }
+            }
+            index++
+        }
+        return null
+    }
+
+    private fun isInterpolatedTemplateLiteral(
+        expression: String,
+        contentStart: Int,
+        contentEnd: Int,
+    ): Boolean =
+        contentStart > 0 &&
+            expression[contentStart - 1] == '`' &&
+            expression.substring(contentStart, contentEnd).contains("\${")
+
+    private fun findMatchingBrace(
+        text: String,
+        start: Int,
+    ): Int? {
+        var depth = 1
+        var index = start + 1
+        while (index < text.length) {
+            when (val char = text[index]) {
+                '\'', '"', '`' -> index = findQuotedLiteralEnd(text, index, char) ?: return null
+                '{' -> depth++
+                '}' -> {
                     depth--
                     if (depth == 0) {
                         return index
