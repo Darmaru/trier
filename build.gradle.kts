@@ -143,7 +143,8 @@ intellijPlatform {
                 <code>&lt;script setup&gt;</code> helper calls, and <code>&lt;style&gt;</code>
                 <code>@apply</code>.</li>
                 <li>Partial fallback coverage for Svelte and Astro static classes, braced class expressions,
-                configured helper calls, and style <code>@apply</code>.</li>
+                Svelte array/object class values, Astro <code>class:list</code>, configured helper calls, and style
+                <code>@apply</code>.</li>
                 <li>CSS/SCSS <code>@apply</code>.</li>
                 <li>Custom attributes and custom class helper functions such as <code>cn</code>, <code>clsx</code>,
                 or tagged template helpers when configured.</li>
@@ -165,14 +166,15 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Svelte and Astro fallback support.</strong></p>
+            <p><strong>Svelte and Astro fallback hardening.</strong></p>
             <ul>
-                <li>Adds partial fallback support for Svelte and Astro static class attributes, braced
-                <code>class={...}</code> / <code>className={...}</code> expressions, configured helper calls, and
-                <code>&lt;style&gt;</code> <code>@apply</code>.</li>
-                <li>Adds Svelte and Astro fixture suites plus folder dry-run and file apply integration coverage.</li>
-                <li>Keeps unsupported Svelte <code>class:</code> directives, Astro <code>class:list</code>, malformed
-                braced expressions, and interpolated template literals as no-ops.</li>
+                <li>Adds Astro <code>class:list</code> fallback support for quoted class fragments in arrays, nested
+                arrays, and object keys.</li>
+                <li>Adds Astro component attribute fixtures for <code>class</code> and <code>class:list</code>.</li>
+                <li>Adds Svelte fixture coverage for array/object class values, component class props, and static
+                template literal classes.</li>
+                <li>Keeps interpolated template literals and unsupported Svelte <code>class:</code> directives as
+                conservative no-ops.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

@@ -30,8 +30,8 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, multiline and nested helper calls, quoted helper object keys | Broader real-world helper composition fixtures. |
 | CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows, basic malformed no-op coverage | More nested at-rule and malformed declaration tests. |
 | Vue SFC | Supported | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation, dedicated fixture coverage, advanced malformed binding no-op coverage, manual smoke pass | Broader real-world fixture coverage as new Vue patterns are reported. |
-| Svelte | Partial | Folder globs include `.svelte`; fallback sorts static `class`, quoted fragments in `class={...}`, configured script helper calls, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run and file apply coverage exists | Reactive shorthand patterns, safe template literal interpolation support, more formatting preservation. |
-| Astro | Partial | Folder globs include `.astro`; fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, configured frontmatter helper calls, style `@apply`; unsupported `class:list` and interpolated template literals have no-op fixture coverage; folder dry-run and file apply coverage exists | `class:list` support, component attribute variants, safe template literal interpolation support, richer frontmatter expressions. |
+| Svelte | Partial | Folder globs include `.svelte`; fallback sorts static `class`, quoted fragments in `class={...}` arrays and object keys, component class props, configured script helper calls, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run and file apply coverage exists | Safe template literal interpolation support, more formatting preservation, manual smoke pass. |
+| Astro | Partial | Folder globs include `.astro`; fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, `class:list` arrays/object keys/nested arrays, component class attributes, configured frontmatter helper calls, style `@apply`; interpolated template literals have no-op fixture coverage; folder dry-run and file apply coverage exists | Safe template literal interpolation support, richer frontmatter expressions, manual smoke pass. |
 | Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments; unsupported `[class.foo]` has no-op coverage | `[ngClass]` arrays/objects, template expressions, custom pipes, formatting preservation. |
 | Laravel Blade / PHP | Best effort | Folder globs include `.php`; fallback may sort simple static strings; unsupported `@class` has no-op coverage | PHP arrays, Blade component attributes, escaped directives, mixed PHP/HTML no-op behavior. |
 | Other template engines | Planned | None | Needs demand-driven investigation. |
@@ -110,7 +110,9 @@ Investigate:
 
 - [x] Static `class="..."`.
 - [x] `class={"..."}`.
-- Template literals inside attributes.
+- [x] Array/object class values.
+- [x] Component class props.
+- [x] Static template literals inside attributes.
 - [x] `class:active={condition}` no-op behavior.
 - [x] Helper calls in `<script>`.
 - [x] `<style>` `@apply`.
@@ -125,9 +127,9 @@ Investigate:
 
 - [x] Static `class="..."`.
 - [x] JSX-like `className` / `class` expressions.
-- `class:list`.
+- [x] `class:list`.
 - [x] Helper calls in frontmatter.
-- Component attributes.
+- [x] Component attributes.
 - [x] Folder dry-run coverage.
 - [x] File-level apply coverage.
 
@@ -170,12 +172,15 @@ Investigate:
 - Continue no-op regression tests for unsupported syntax.
 - Complete a Vue fixture suite before promoting Vue to Supported.
 
-### 0.3.0 Framework Coverage
+### 0.3.x Svelte and Astro Coverage
 
-- Promote Vue to Supported.
-- Add Svelte and Astro fixture suites.
-- Document Svelte/Astro as Partial only after tests exist.
-- Keep folder globs broad but support claims narrow.
+- [x] Promote Vue to Supported in 0.3.0.
+- [x] Add Svelte and Astro fixture suites in 0.3.1.
+- [x] Add Astro `class:list` array/object/nested-array coverage.
+- [x] Add Svelte array/object/component class prop coverage.
+- [x] Add Svelte/Astro folder dry-run and file apply integration coverage.
+- Keep Svelte/Astro at Partial until a manual smoke pass confirms the fallback coverage in real IDE files.
+- Promote Svelte/Astro to Supported only after smoke coverage confirms the documented no-op boundaries.
 
 ### 0.4.0 Template Frameworks
 

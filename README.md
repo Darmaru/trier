@@ -23,7 +23,7 @@
 Trier is a JetBrains IDE plugin for sorting Tailwind CSS classes without handing the whole file to Prettier. It uses the official Tailwind Labs sorter from `prettier-plugin-tailwindcss`, preserves surrounding code style, and gives you IDE-native workflows for editor sorting, save and reformat hooks, Project View actions, folder scans, dry-run reviews, diffs, and selective apply.
 <!-- Plugin description end -->
 
-Trier is built for teams that want consistent Tailwind ordering without broad formatting churn. It sorts class lists, `@apply` rules, JSX/TSX expressions, Vue bindings, and configured class helper functions while keeping the surrounding framework syntax and formatting intact.
+Trier is built for teams that want consistent Tailwind ordering without broad formatting churn. It sorts class lists, `@apply` rules, JSX/TSX expressions, Vue bindings, Svelte/Astro fallback patterns, and configured class helper functions while keeping the surrounding framework syntax and formatting intact.
 
 ## Why Trier
 
@@ -86,6 +86,8 @@ Trier handles the common places where Tailwind class lists appear:
 - Vue `<template>` static `class`
 - Vue dynamic `:class` quoted fragments
 - Vue `<script setup>` custom class helper calls
+- Svelte static classes, `class={...}` arrays/object keys, component class props, helper calls, and `<style>` `@apply`
+- Astro static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, frontmatter helper calls, and `<style>` `@apply`
 - CSS/SCSS `@apply`
 - Vue `<style>` `@apply`
 - Custom attributes such as `data-classes`
@@ -97,7 +99,9 @@ Default attribute targets:
 class
 className
 :class
+v-bind:class
 [ngClass]
+class:list
 ```
 
 Custom attributes and functions can be exact names or regex patterns wrapped in `/.../`.
@@ -169,13 +173,17 @@ Node.js is still required because the Tailwind sorter runs in Node.js. The bundl
 
 ## Framework Coverage
 
-Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, TSX, CSS, SCSS `@apply`, and Vue single-file components.
+Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, TSX, CSS, SCSS `@apply`, and Vue single-file components. Svelte and Astro are covered through the conservative fallback processor and dedicated fixtures.
 
 Vue support is enabled through the optional bundled dependency `org.jetbrains.plugins.vue`.
 
 Vue is covered by dedicated fixtures for static template classes, dynamic `:class` / `v-bind:class` bindings, nested arrays/objects, `<script setup>` helpers, `<style>` `@apply`, formatting preservation, and malformed no-op cases.
 
-Astro, Svelte, and PHP files can be included in folder globs and may work through the fallback text processor, but they are best-effort in the current test matrix.
+Svelte coverage includes static classes, `class={...}` quoted fragments, arrays/object keys, component class props, configured helper calls, `<style>` `@apply`, and no-op coverage for `class:` directives and interpolated template literals.
+
+Astro coverage includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls, `<style>` `@apply`, and no-op coverage for interpolated template literals.
+
+PHP files can be included in folder globs and may work through the fallback text processor, but they remain best-effort in the current test matrix.
 
 See [Framework Support Roadmap](docs/framework-support.md) for the working support matrix and planned stabilization steps.
 

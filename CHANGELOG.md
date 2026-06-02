@@ -2,6 +2,19 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.3.2] - 2026-06-03
+
+### Added
+
+- Added Astro `class:list` fallback support for quoted class fragments in arrays and object keys.
+- Added Astro component attribute fixtures for `class` and `class:list`.
+- Added malformed Astro `class:list` no-op coverage.
+- Added Svelte fallback fixtures for array/object class values and component class props.
+
+### Changed
+
+- Updated README, Marketplace description, and framework roadmap to reflect the expanded Svelte and Astro fallback coverage.
+
 ## [0.3.1] - 2026-06-01
 
 ### Added

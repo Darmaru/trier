@@ -22,6 +22,9 @@ class TrierSvelteFixtureTest {
         listOf(
             "static-class" to settings,
             "class-expression" to settings,
+            "static-template-literal" to settings,
+            "class-array-object" to settings,
+            "component-class-prop" to settings,
             "script-helper" to helperSettings,
             "style-apply" to settings,
         ).forEach { (name, fixtureSettings) ->

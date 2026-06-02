@@ -179,9 +179,25 @@ class TrierTextProcessorTest {
     }
 
     @Test
-    fun `leaves unsupported astro class list expression unchanged`() {
+    fun `sorts quoted fragments inside astro class list expression`() {
         val processor = processor()
-        val input = """<div class:list={["text-center p-4 flex bg-red-500 font-bold"]}></div>"""
+
+        val result =
+            processor.process(
+                """<div class:list={["text-center p-4 flex bg-red-500 font-bold", active && "font-bold flex p-4"]}></div>""",
+                settings,
+            )
+
+        assertEquals(
+            """<div class:list={["flex bg-red-500 p-4 text-center font-bold", active && "flex p-4 font-bold"]}></div>""",
+            result,
+        )
+    }
+
+    @Test
+    fun `leaves interpolated astro class list template literal unchanged`() {
+        val processor = processor()
+        val input = """<div class:list={[`text-center ${'$'}{activeClass} p-4 flex bg-red-500 font-bold`]}></div>"""
 
         val result = processor.process(input, settings)
 

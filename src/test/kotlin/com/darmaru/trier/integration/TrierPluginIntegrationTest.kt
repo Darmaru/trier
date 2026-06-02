@@ -455,66 +455,87 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(phpOriginal, phpFile.readText())
         assertEquals(4, report.scanned)
         assertEquals(4, report.matched)
-        assertEquals(1, report.changed)
-        assertEquals(3, report.unchanged)
+        assertEquals(2, report.changed)
+        assertEquals(2, report.unchanged)
         assertEquals(0, report.updated)
         assertEquals(0, report.failed)
-        assertEquals("Component.vue", report.changes.single().relativePath)
-        assertEquals(vueOriginal, report.changes.single().originalText)
+        val vueChange = report.changes.single { it.relativePath == "Component.vue" }
+        val astroChange = report.changes.single { it.relativePath == "Component.astro" }
+        assertEquals(vueOriginal, vueChange.originalText)
         assertEquals(
             """
             <template>
               <div v-bind:class="'flex bg-red-500 p-4 text-center font-bold'"></div>
             </template>
             """.trimIndent(),
+            vueChange.sortedText,
+        )
+        assertEquals(astroOriginal, astroChange.originalText)
+        assertEquals(
+            """<div class:list={["flex bg-red-500 p-4 text-center font-bold"]}></div>""",
+            astroChange.sortedText,
+        )
+    }
+
+    fun testSortFolderDryRunReportsSupportedSvelteChanges() {
+        val root = createTempDirectory("trier-folder-svelte-dry-run-test")
+        val file = root / "Component.svelte"
+        val original =
+            """
+            <button class={[
+              "text-center p-4 flex bg-red-500 font-bold",
+              active && "font-bold flex p-4",
+              { "tracking-wide text-xs px-2 py-0.5": compact },
+            ]}>
+              Save
+            </button>
+            """.trimIndent()
+        file.writeText(original)
+
+        val report = TrierSortService.getInstance().sortFolder(project, root.toString(), "**/*.svelte", dryRun = true)
+
+        assertEquals(original, file.readText())
+        assertEquals(1, report.scanned)
+        assertEquals(1, report.matched)
+        assertEquals(1, report.changed)
+        assertEquals(0, report.updated)
+        assertEquals(0, report.failed)
+        assertEquals("Component.svelte", report.changes.single().relativePath)
+        assertEquals(
+            """
+            <button class={[
+              "flex bg-red-500 p-4 text-center font-bold",
+              active && "flex p-4 font-bold",
+              { "px-2 py-0.5 text-xs tracking-wide": compact },
+            ]}>
+              Save
+            </button>
+            """.trimIndent(),
             report.changes.single().sortedText,
         )
     }
 
-    fun testSortFolderDryRunReportsSupportedSvelteAndAstroChanges() {
-        val root = createTempDirectory("trier-folder-svelte-astro-dry-run-test")
-        val svelteFile = root / "Component.svelte"
-        val astroFile = root / "Component.astro"
-        val svelteOriginal =
-            """
-            <button class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}>
-              Save
-            </button>
-            """.trimIndent()
-        val astroOriginal =
+    fun testSortFolderDryRunReportsSupportedAstroChanges() {
+        val root = createTempDirectory("trier-folder-astro-dry-run-test")
+        val file = root / "Component.astro"
+        val original =
             """
             <button class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}>
               Save
             </button>
             <Card className={"text-center p-4 flex bg-red-500 font-bold"} />
             """.trimIndent()
-        svelteFile.writeText(svelteOriginal)
-        astroFile.writeText(astroOriginal)
+        file.writeText(original)
 
-        val report =
-            TrierSortService
-                .getInstance()
-                .sortFolder(project, root.toString(), "**/*.{svelte,astro}", dryRun = true)
+        val report = TrierSortService.getInstance().sortFolder(project, root.toString(), "**/*.astro", dryRun = true)
 
-        assertEquals(svelteOriginal, svelteFile.readText())
-        assertEquals(astroOriginal, astroFile.readText())
-        assertEquals(2, report.scanned)
-        assertEquals(2, report.matched)
-        assertEquals(2, report.changed)
+        assertEquals(original, file.readText())
+        assertEquals(1, report.scanned)
+        assertEquals(1, report.matched)
+        assertEquals(1, report.changed)
         assertEquals(0, report.updated)
         assertEquals(0, report.failed)
-        assertEquals(
-            listOf("Component.astro", "Component.svelte"),
-            report.changes.map { it.relativePath }.sorted(),
-        )
-        assertEquals(
-            """
-            <button class={active ? "flex bg-red-500 p-4 text-center font-bold" : "flex p-4 font-bold"}>
-              Save
-            </button>
-            """.trimIndent(),
-            report.changes.single { it.relativePath == "Component.svelte" }.sortedText,
-        )
+        assertEquals("Component.astro", report.changes.single().relativePath)
         assertEquals(
             """
             <button class={active ? "flex bg-red-500 p-4 text-center font-bold" : "flex p-4 font-bold"}>
@@ -522,7 +543,7 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
             </button>
             <Card className={"flex bg-red-500 p-4 text-center font-bold"} />
             """.trimIndent(),
-            report.changes.single { it.relativePath == "Component.astro" }.sortedText,
+            report.changes.single().sortedText,
         )
     }
 
@@ -584,38 +605,41 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         )
     }
 
-    fun testSortFileAppliesSupportedSvelteAndAstroChanges() {
-        val root = createTempDirectory("trier-file-svelte-astro-apply-test")
-        val svelteFile = root / "Component.svelte"
-        val astroFile = root / "Component.astro"
-        svelteFile.writeText(
+    fun testSortFileAppliesSupportedSvelteChanges() {
+        val root = createTempDirectory("trier-file-svelte-apply-test")
+        val file = root / "Component.svelte"
+        file.writeText(
             """<button class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}></button>""",
         )
-        astroFile.writeText("""<Card className={"text-center p-4 flex bg-red-500 font-bold"} />""")
-
-        val localFileSystem =
+        val virtualFile =
             com.intellij.openapi.vfs.LocalFileSystem
                 .getInstance()
-        val svelteReport =
-            TrierSortService.getInstance().sortFile(
-                project,
-                localFileSystem.refreshAndFindFileByNioFile(svelteFile)!!,
-            )
-        val astroReport =
-            TrierSortService.getInstance().sortFile(
-                project,
-                localFileSystem.refreshAndFindFileByNioFile(astroFile)!!,
-            )
+                .refreshAndFindFileByNioFile(file)!!
+
+        val report = TrierSortService.getInstance().sortFile(project, virtualFile)
 
         assertEquals(
             """<button class={active ? "flex bg-red-500 p-4 text-center font-bold" : "flex p-4 font-bold"}></button>""",
-            svelteFile.readText(),
+            file.readText(),
         )
-        assertEquals("""<Card className={"flex bg-red-500 p-4 text-center font-bold"} />""", astroFile.readText())
-        assertEquals(1, svelteReport.changed)
-        assertEquals(1, svelteReport.updated)
-        assertEquals(1, astroReport.changed)
-        assertEquals(1, astroReport.updated)
+        assertEquals(1, report.changed)
+        assertEquals(1, report.updated)
+    }
+
+    fun testSortFileAppliesSupportedAstroChanges() {
+        val root = createTempDirectory("trier-file-astro-apply-test")
+        val file = root / "Component.astro"
+        file.writeText("""<Card className={"text-center p-4 flex bg-red-500 font-bold"} />""")
+        val virtualFile =
+            com.intellij.openapi.vfs.LocalFileSystem
+                .getInstance()
+                .refreshAndFindFileByNioFile(file)!!
+
+        val report = TrierSortService.getInstance().sortFile(project, virtualFile)
+
+        assertEquals("""<Card className={"flex bg-red-500 p-4 text-center font-bold"} />""", file.readText())
+        assertEquals(1, report.changed)
+        assertEquals(1, report.updated)
     }
 
     fun testSortFileSkipsDirectory() {
@@ -942,7 +966,18 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
             .build()
 
     private fun sortClassesStub(value: String): String {
-        val order = listOf("flex", "bg-red-500", "p-4", "text-center", "font-bold")
+        val order =
+            listOf(
+                "flex",
+                "bg-red-500",
+                "px-2",
+                "py-0.5",
+                "p-4",
+                "text-xs",
+                "text-center",
+                "font-bold",
+                "tracking-wide",
+            )
         return value
             .split(Regex("\\s+"))
             .filter(String::isNotBlank)

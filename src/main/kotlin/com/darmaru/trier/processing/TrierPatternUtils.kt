@@ -1,6 +1,6 @@
 package com.darmaru.trier.processing
 
-private val DEFAULT_ATTRIBUTES = listOf("class", "className", ":class", "v-bind:class", "[ngClass]")
+private val DEFAULT_ATTRIBUTES = listOf("class", "className", ":class", "v-bind:class", "[ngClass]", "class:list")
 
 fun buildAttributePredicates(customValues: List<String>): List<(String) -> Boolean> =
     (DEFAULT_ATTRIBUTES + customValues)
