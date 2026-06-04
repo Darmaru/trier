@@ -30,8 +30,8 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, multiline and nested helper calls, quoted helper object keys | Broader real-world helper composition fixtures. |
 | CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows, basic malformed no-op coverage | More nested at-rule and malformed declaration tests. |
 | Vue SFC | Supported | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation, dedicated fixture coverage, advanced malformed binding no-op coverage, manual smoke pass | Broader real-world fixture coverage as new Vue patterns are reported. |
-| Svelte | Partial | Folder globs include `.svelte`; fallback sorts static `class`, quoted fragments in `class={...}` arrays and object keys, component class props, configured script helper calls, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run and file apply coverage exists | Safe template literal interpolation support, more formatting preservation, manual smoke pass. |
-| Astro | Partial | Folder globs include `.astro`; fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, `class:list` arrays/object keys/nested arrays, component class attributes, configured frontmatter helper calls, style `@apply`; interpolated template literals have no-op fixture coverage; folder dry-run and file apply coverage exists | Safe template literal interpolation support, richer frontmatter expressions, manual smoke pass. |
+| Svelte | Partial | Folder globs include `.svelte`; fallback sorts static `class`, quoted fragments in `class={...}` arrays and object keys, component class props, SvelteKit-style `$props()` class composition, configured script helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run and file apply coverage exists | More formatting preservation, manual smoke pass. |
+| Astro | Partial | Folder globs include `.astro`; fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, `class:list` arrays/object keys/nested arrays, component class attributes, layout/frontmatter variants, configured frontmatter helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; interpolated template literals have no-op fixture coverage; folder dry-run and file apply coverage exists | Frontmatter expression smoke coverage, manual smoke pass. |
 | Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments; unsupported `[class.foo]` has no-op coverage | `[ngClass]` arrays/objects, template expressions, custom pipes, formatting preservation. |
 | Laravel Blade / PHP | Best effort | Folder globs include `.php`; fallback may sort simple static strings; unsupported `@class` has no-op coverage | PHP arrays, Blade component attributes, escaped directives, mixed PHP/HTML no-op behavior. |
 | Other template engines | Planned | None | Needs demand-driven investigation. |
@@ -115,6 +115,8 @@ Investigate:
 - [x] Static template literals inside attributes.
 - [x] `class:active={condition}` no-op behavior.
 - [x] Helper calls in `<script>`.
+- [x] Static template literals in configured helper calls.
+- [x] Manual smoke coverage for helper calls with `cn` configured in `Functions`.
 - [x] `<style>` `@apply`.
 - [x] Folder dry-run coverage.
 - [x] File-level apply coverage.
@@ -129,6 +131,8 @@ Investigate:
 - [x] JSX-like `className` / `class` expressions.
 - [x] `class:list`.
 - [x] Helper calls in frontmatter.
+- [x] Static template literals in configured helper calls.
+- [x] Manual smoke coverage for helper calls with `cn` configured in `Functions`.
 - [x] Component attributes.
 - [x] Folder dry-run coverage.
 - [x] File-level apply coverage.
@@ -179,8 +183,17 @@ Investigate:
 - [x] Add Astro `class:list` array/object/nested-array coverage.
 - [x] Add Svelte array/object/component class prop coverage.
 - [x] Add Svelte/Astro folder dry-run and file apply integration coverage.
+- [x] Add SvelteKit-style `$props()` and Astro layout/frontmatter variant fixtures.
 - Keep Svelte/Astro at Partial until a manual smoke pass confirms the fallback coverage in real IDE files.
 - Promote Svelte/Astro to Supported only after smoke coverage confirms the documented no-op boundaries.
+
+Manual smoke checklist before promotion:
+
+- Svelte file: static `class`, `class={...}` ternary, array/object class values, static template literal class, and `class:` directive no-op.
+- Svelte component: `$props()` class alias, configured `cn(...)` helper with nested args, `cn(\`...\`)`, interpolated helper no-op, and `<style>` `@apply`.
+- Astro file: static `class`, `class={...}`, `className={...}`, `class:list` arrays/object keys/nested arrays, and interpolated `class:list` no-op.
+- Astro component/layout: frontmatter `cn(...)` variants, `cn(\`...\`)`, component `class:list`, interpolated helper no-op, and `<style>` `@apply`.
+- Workflow: Project View file dry-run opens diff directly, folder dry-run lists `.svelte` and `.astro`, Apply Selected and diff Apply remove applied files.
 
 ### 0.4.0 Template Frameworks
 

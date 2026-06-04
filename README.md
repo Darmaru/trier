@@ -86,8 +86,8 @@ Trier handles the common places where Tailwind class lists appear:
 - Vue `<template>` static `class`
 - Vue dynamic `:class` quoted fragments
 - Vue `<script setup>` custom class helper calls
-- Svelte static classes, `class={...}` arrays/object keys, component class props, helper calls, and `<style>` `@apply`
-- Astro static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, frontmatter helper calls, and `<style>` `@apply`
+- Svelte static classes, `class={...}` arrays/object keys, component class props, nested helper calls, static template literal helpers, and `<style>` `@apply`
+- Astro static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, nested frontmatter helper calls, static template literal helpers, and `<style>` `@apply`
 - CSS/SCSS `@apply`
 - Vue `<style>` `@apply`
 - Custom attributes such as `data-classes`
@@ -159,7 +159,7 @@ Open `Settings | Tools | Trier`.
 - `Preserve whitespace`: passed as `tailwindPreserveWhitespace`.
 - `Preserve duplicates`: passed as `tailwindPreserveDuplicates`.
 - `Attributes`: additional `tailwindAttributes`, one per line or comma-separated.
-- `Functions`: `tailwindFunctions`, one per line or comma-separated.
+- `Functions`: `tailwindFunctions`, one per line or comma-separated. Add helpers such as `cn`, `clsx`, or `twMerge` here before Trier sorts their string arguments.
 
 Manual stylesheet and config paths always take precedence over auto-detected paths. The stylesheet detector looks for common Tailwind entrypoint names and CSS files containing Tailwind markers such as `@import "tailwindcss"`, `@import "tailwindcss/utilities.css"`, `@plugin "@tailwindcss/typography"`, `@tailwind utilities`, or `@config`, while skipping common vendor, build, and cache directories.
 
@@ -179,9 +179,9 @@ Vue support is enabled through the optional bundled dependency `org.jetbrains.pl
 
 Vue is covered by dedicated fixtures for static template classes, dynamic `:class` / `v-bind:class` bindings, nested arrays/objects, `<script setup>` helpers, `<style>` `@apply`, formatting preservation, and malformed no-op cases.
 
-Svelte coverage includes static classes, `class={...}` quoted fragments, arrays/object keys, component class props, configured helper calls, `<style>` `@apply`, and no-op coverage for `class:` directives and interpolated template literals.
+Svelte coverage includes static classes, `class={...}` quoted fragments, arrays/object keys, component class props, configured helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for `class:` directives and interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
 
-Astro coverage includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls, `<style>` `@apply`, and no-op coverage for interpolated template literals.
+Astro coverage includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
 
 PHP files can be included in folder globs and may work through the fallback text processor, but they remain best-effort in the current test matrix.
 

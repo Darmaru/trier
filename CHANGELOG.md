@@ -2,6 +2,19 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.3.3] - 2026-06-05
+
+### Added
+
+- Added fallback support for static template literals in configured helper calls.
+- Added SvelteKit-style component props and Astro layout/frontmatter variant fixtures for promotion prep.
+- Added Svelte script-helper and Astro frontmatter-helper fixtures for nested helper arguments.
+- Added Svelte script-helper and Astro frontmatter-helper fixtures for static template literals and interpolated no-op cases.
+
+### Changed
+
+- Clarified that Svelte and Astro helper-call sorting requires adding helpers such as `cn` to Trier's configured `Functions`.
+
 ## [0.3.2] - 2026-06-03
 
 ### Added

@@ -26,6 +26,9 @@ class TrierSvelteFixtureTest {
             "class-array-object" to settings,
             "component-class-prop" to settings,
             "script-helper" to helperSettings,
+            "script-helper-nested" to helperSettings,
+            "script-helper-template-literal" to helperSettings,
+            "sveltekit-component-props" to helperSettings,
             "style-apply" to settings,
         ).forEach { (name, fixtureSettings) ->
             assertSvelteFixture(name, fixtureSettings)
@@ -37,6 +40,7 @@ class TrierSvelteFixtureTest {
         listOf(
             "class-directive-noop",
             "malformed-class-expression-noop",
+            "script-helper-interpolation-noop",
             "template-literal-interpolation-noop",
         ).forEach { name ->
             assertSvelteFixture(name, settings)

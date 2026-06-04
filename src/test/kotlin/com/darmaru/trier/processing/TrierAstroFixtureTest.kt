@@ -25,6 +25,9 @@ class TrierAstroFixtureTest {
             "class-list" to settings,
             "component-attributes" to settings,
             "frontmatter-helper" to helperSettings,
+            "frontmatter-helper-nested" to helperSettings,
+            "frontmatter-helper-template-literal" to helperSettings,
+            "layout-frontmatter-variants" to helperSettings,
             "style-apply" to settings,
         ).forEach { (name, fixtureSettings) ->
             assertAstroFixture(name, fixtureSettings)
@@ -35,6 +38,7 @@ class TrierAstroFixtureTest {
     fun `leaves unsupported astro fallback fixtures unchanged`() {
         listOf(
             "class-list-interpolation-noop",
+            "frontmatter-helper-interpolation-noop",
             "malformed-class-list-noop",
             "template-literal-interpolation-noop",
         ).forEach { name ->

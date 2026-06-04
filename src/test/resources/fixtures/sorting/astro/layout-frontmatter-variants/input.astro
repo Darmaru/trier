@@ -1,0 +1,17 @@
+---
+import Button from "../components/Button.astro"
+
+const { class: className = "", compact = false, active = false } = Astro.props
+const variants = {
+  shell: cn("text-center p-4 flex bg-red-500 font-bold"),
+  button: cn([
+    "text-center p-4 flex bg-red-500 font-bold",
+    active && "font-bold flex p-4",
+    { "tracking-wide text-xs px-2 py-0.5": compact },
+  ]),
+}
+---
+
+<main class:list={[variants.shell, className]}>
+  <Button class:list={[variants.button, "font-bold flex p-4"]}>Save</Button>
+</main>

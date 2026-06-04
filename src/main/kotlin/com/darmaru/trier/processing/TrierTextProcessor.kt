@@ -162,6 +162,10 @@ class TrierTextProcessor(
             val end = findQuotedLiteralEnd(text, cursor, '`') ?: break
             val contentStart = cursor + 1
             val value = text.substring(contentStart, end)
+            if (value.contains("\${")) {
+                index = end + 1
+                continue
+            }
             replacements += SortCandidate(contentStart, end, value)
             index = end + 1
         }
@@ -219,6 +223,10 @@ class TrierTextProcessor(
             }
             if (char == '`') {
                 val literalEnd = findQuotedLiteralEnd(text, index, char, end) ?: break
+                val value = text.substring(index + 1, literalEnd)
+                if (!value.contains("\${")) {
+                    replacements += SortCandidate(index + 1, literalEnd, value)
+                }
                 index = literalEnd + 1
                 continue
             }

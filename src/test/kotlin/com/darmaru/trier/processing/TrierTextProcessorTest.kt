@@ -79,6 +79,34 @@ class TrierTextProcessorTest {
     }
 
     @Test
+    fun `sorts static template literal in custom function call`() {
+        val processor = processor()
+        val functionSettings = settings.copy(tailwindFunctions = listOf("cn"))
+
+        val result =
+            processor.process(
+                """const value = cn(`text-center p-4 flex bg-red-500 font-bold`)""",
+                functionSettings,
+            )
+
+        assertEquals(
+            """const value = cn(`flex bg-red-500 p-4 text-center font-bold`)""",
+            result,
+        )
+    }
+
+    @Test
+    fun `leaves interpolated template literal in custom function call unchanged`() {
+        val processor = processor()
+        val functionSettings = settings.copy(tailwindFunctions = listOf("cn"))
+        val input = """const value = cn(`text-center ${'$'}{activeClass} p-4 flex bg-red-500 font-bold`)"""
+
+        val result = processor.process(input, functionSettings)
+
+        assertEquals(input, result)
+    }
+
+    @Test
     fun `sorts tagged template content for configured function`() {
         val processor = processor()
         val functionSettings = settings.copy(tailwindFunctions = listOf("tw"))
@@ -93,6 +121,17 @@ class TrierTextProcessorTest {
             """const button = tw`flex bg-red-500 p-4 text-center font-bold`""",
             result,
         )
+    }
+
+    @Test
+    fun `leaves interpolated tagged template content unchanged`() {
+        val processor = processor()
+        val functionSettings = settings.copy(tailwindFunctions = listOf("tw"))
+        val input = """const button = tw`text-center ${'$'}{activeClass} p-4 flex bg-red-500 font-bold`"""
+
+        val result = processor.process(input, functionSettings)
+
+        assertEquals(input, result)
     }
 
     @Test
