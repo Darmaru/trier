@@ -2,6 +2,17 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.3.4] - 2026-06-06
+
+### Added
+
+- Added Svelte and Astro real-smoke fixture coverage that combines the documented supported patterns and no-op boundaries in representative component files.
+
+### Changed
+
+- Promoted Svelte and Astro support to Supported after fixture hardening and manual smoke verification.
+- Updated README, Marketplace description, and framework roadmap to describe Svelte and Astro as conservative fallback-backed supported frameworks.
+
 ## [0.3.3] - 2026-06-05
 
 ### Added

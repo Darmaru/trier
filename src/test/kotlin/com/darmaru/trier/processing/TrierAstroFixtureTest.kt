@@ -28,6 +28,7 @@ class TrierAstroFixtureTest {
             "frontmatter-helper-nested" to helperSettings,
             "frontmatter-helper-template-literal" to helperSettings,
             "layout-frontmatter-variants" to helperSettings,
+            "real-smoke" to helperSettings,
             "style-apply" to settings,
         ).forEach { (name, fixtureSettings) ->
             assertAstroFixture(name, fixtureSettings)

@@ -29,6 +29,7 @@ class TrierSvelteFixtureTest {
             "script-helper-nested" to helperSettings,
             "script-helper-template-literal" to helperSettings,
             "sveltekit-component-props" to helperSettings,
+            "real-smoke" to helperSettings,
             "style-apply" to settings,
         ).forEach { (name, fixtureSettings) ->
             assertSvelteFixture(name, fixtureSettings)

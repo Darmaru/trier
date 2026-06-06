@@ -142,9 +142,9 @@ intellijPlatform {
                 <li>Vue SFC template classes, dynamic <code>:class</code> bindings,
                 <code>&lt;script setup&gt;</code> helper calls, and <code>&lt;style&gt;</code>
                 <code>@apply</code>.</li>
-                <li>Partial fallback coverage for Svelte and Astro static classes, braced class expressions,
-                Svelte array/object class values, Astro <code>class:list</code>, nested configured helper calls,
-                static template literal helpers, and style <code>@apply</code>.</li>
+                <li>Conservative fallback-backed support for Svelte and Astro static classes, braced class
+                expressions, Svelte array/object class values, Astro <code>class:list</code>, nested configured
+                helper calls, static template literal helpers, and style <code>@apply</code>.</li>
                 <li>CSS/SCSS <code>@apply</code>.</li>
                 <li>Custom attributes and custom class helper functions such as <code>cn</code>, <code>clsx</code>,
                 or tagged template helpers when configured.</li>
@@ -166,15 +166,13 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Svelte and Astro helper hardening.</strong></p>
+            <p><strong>Svelte and Astro promoted to Supported.</strong></p>
             <ul>
-                <li>Adds fallback support for static template literals in configured helper calls such as
-                <code>cn(`...`)</code>.</li>
-                <li>Adds Svelte script-helper and Astro frontmatter-helper fixtures for nested helper arguments.</li>
-                <li>Adds no-op coverage for interpolated helper template literals and interpolated tagged template
-                helpers.</li>
-                <li>Clarifies that Svelte and Astro helper-call sorting uses Trier's configured
-                <code>Functions</code>, for example <code>cn</code>.</li>
+                <li>Promotes Svelte and Astro support after fixture hardening and manual smoke verification.</li>
+                <li>Adds real-smoke fixtures that combine supported syntax and documented no-op boundaries in
+                representative Svelte and Astro component files.</li>
+                <li>Documents Svelte and Astro support as conservative fallback-backed, with helper calls still using
+                Trier's configured <code>Functions</code>, for example <code>cn</code>.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

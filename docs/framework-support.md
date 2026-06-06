@@ -17,7 +17,7 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 
 | Level | Meaning |
 | --- | --- |
-| Supported | Covered by PSI or focused parsing, regression tests, folder dry-run, and apply safety. |
+| Supported | Covered by PSI, focused parsing, or conservative fallback processing with regression tests, folder dry-run, and apply safety. |
 | Partial | Some common patterns work and have tests, but important framework syntax is missing. |
 | Best effort | May work through generic text processing or custom patterns, but not part of the compatibility contract. |
 | Planned | Not implemented or not verified yet. |
@@ -30,8 +30,8 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | JSX/TSX | Supported | `className`, string expressions, template literals, ternaries, arrays, object keys, multiline and nested helper calls, quoted helper object keys | Broader real-world helper composition fixtures. |
 | CSS/SCSS | Supported | `@apply` in CSS/SCSS, selection and folder flows, basic malformed no-op coverage | More nested at-rule and malformed declaration tests. |
 | Vue SFC | Supported | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation, dedicated fixture coverage, advanced malformed binding no-op coverage, manual smoke pass | Broader real-world fixture coverage as new Vue patterns are reported. |
-| Svelte | Partial | Folder globs include `.svelte`; fallback sorts static `class`, quoted fragments in `class={...}` arrays and object keys, component class props, SvelteKit-style `$props()` class composition, configured script helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run and file apply coverage exists | More formatting preservation, manual smoke pass. |
-| Astro | Partial | Folder globs include `.astro`; fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, `class:list` arrays/object keys/nested arrays, component class attributes, layout/frontmatter variants, configured frontmatter helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; interpolated template literals have no-op fixture coverage; folder dry-run and file apply coverage exists | Frontmatter expression smoke coverage, manual smoke pass. |
+| Svelte | Supported | Folder globs include `.svelte`; conservative fallback sorts static `class`, quoted fragments in `class={...}` arrays and object keys, component class props, SvelteKit-style `$props()` class composition, configured script helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run, file apply, real-smoke fixture, and manual smoke coverage exists | Demand-driven real-world edge cases; PSI-backed precision only if the IDE API becomes worth the complexity. |
+| Astro | Supported | Folder globs include `.astro`; conservative fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, `class:list` arrays/object keys/nested arrays, component class attributes, layout/frontmatter variants, configured frontmatter helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; interpolated template literals have no-op fixture coverage; folder dry-run, file apply, real-smoke fixture, and manual smoke coverage exists | Demand-driven real-world edge cases; PSI-backed precision only if the IDE API becomes worth the complexity. |
 | Angular | Best effort | Default attributes include `[ngClass]`; fallback may sort simple quoted fragments; unsupported `[class.foo]` has no-op coverage | `[ngClass]` arrays/objects, template expressions, custom pipes, formatting preservation. |
 | Laravel Blade / PHP | Best effort | Folder globs include `.php`; fallback may sort simple static strings; unsupported `@class` has no-op coverage | PHP arrays, Blade component attributes, escaped directives, mixed PHP/HTML no-op behavior. |
 | Other template engines | Planned | None | Needs demand-driven investigation. |
@@ -104,7 +104,7 @@ Test and support:
 
 ### Svelte
 
-Target level: Partial, then Supported if PSI support is stable enough.
+Target level: Supported.
 
 Investigate:
 
@@ -120,10 +120,12 @@ Investigate:
 - [x] `<style>` `@apply`.
 - [x] Folder dry-run coverage.
 - [x] File-level apply coverage.
+- [x] Real-smoke fixture coverage.
+- [x] Manual smoke pass before promotion to Supported.
 
 ### Astro
 
-Target level: Partial.
+Target level: Supported.
 
 Investigate:
 
@@ -136,6 +138,8 @@ Investigate:
 - [x] Component attributes.
 - [x] Folder dry-run coverage.
 - [x] File-level apply coverage.
+- [x] Real-smoke fixture coverage.
+- [x] Manual smoke pass before promotion to Supported.
 
 ### Angular
 
@@ -184,10 +188,10 @@ Investigate:
 - [x] Add Svelte array/object/component class prop coverage.
 - [x] Add Svelte/Astro folder dry-run and file apply integration coverage.
 - [x] Add SvelteKit-style `$props()` and Astro layout/frontmatter variant fixtures.
-- Keep Svelte/Astro at Partial until a manual smoke pass confirms the fallback coverage in real IDE files.
-- Promote Svelte/Astro to Supported only after smoke coverage confirms the documented no-op boundaries.
+- [x] Add Svelte/Astro real-smoke fixtures for representative supported and no-op boundaries.
+- [x] Promote Svelte/Astro to Supported after smoke coverage confirmed the documented no-op boundaries.
 
-Manual smoke checklist before promotion:
+Manual smoke checklist completed before promotion:
 
 - Svelte file: static `class`, `class={...}` ternary, array/object class values, static template literal class, and `class:` directive no-op.
 - Svelte component: `$props()` class alias, configured `cn(...)` helper with nested args, `cn(\`...\`)`, interpolated helper no-op, and `<style>` `@apply`.

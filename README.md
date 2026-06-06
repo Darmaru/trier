@@ -173,15 +173,15 @@ Node.js is still required because the Tailwind sorter runs in Node.js. The bundl
 
 ## Framework Coverage
 
-Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, TSX, CSS, SCSS `@apply`, and Vue single-file components. Svelte and Astro are covered through the conservative fallback processor and dedicated fixtures.
+Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, TSX, CSS, SCSS `@apply`, and Vue single-file components. Svelte and Astro are supported through the conservative fallback processor, dedicated fixtures, and manual smoke coverage.
 
 Vue support is enabled through the optional bundled dependency `org.jetbrains.plugins.vue`.
 
 Vue is covered by dedicated fixtures for static template classes, dynamic `:class` / `v-bind:class` bindings, nested arrays/objects, `<script setup>` helpers, `<style>` `@apply`, formatting preservation, and malformed no-op cases.
 
-Svelte coverage includes static classes, `class={...}` quoted fragments, arrays/object keys, component class props, configured helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for `class:` directives and interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
+Svelte support includes static classes, `class={...}` quoted fragments, arrays/object keys, component class props, configured helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for `class:` directives and interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
 
-Astro coverage includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
+Astro support includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
 
 PHP files can be included in folder globs and may work through the fallback text processor, but they remain best-effort in the current test matrix.
 

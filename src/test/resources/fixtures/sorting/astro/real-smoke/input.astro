@@ -1,0 +1,38 @@
+---
+import Button from "../components/Button.astro"
+
+const { class: className = "", compact = false, active = false } = Astro.props
+const variants = {
+  shell: cn("text-center p-4 flex bg-red-500 font-bold"),
+  button: cn([
+    "text-center p-4 flex bg-red-500 font-bold",
+    active && "font-bold flex p-4",
+    { "tracking-wide text-xs px-2 py-0.5": compact },
+  ]),
+  unsafe: cn(`text-center ${activeClass} p-4 flex bg-red-500 font-bold`),
+}
+---
+
+<main
+  class={active ? "text-center p-4 flex bg-red-500 font-bold" : "font-bold flex p-4"}
+  className={"text-center p-4 flex bg-red-500 font-bold"}
+>
+  <Button
+    class:list={[
+      variants.shell,
+      className,
+      "font-bold flex p-4",
+      ["tracking-wide text-xs px-2 py-0.5"],
+      { "tracking-wide text-xs px-2 py-0.5": compact },
+    ]}
+  >
+    Save
+  </Button>
+  <Card className={`text-center ${activeClass} p-4 flex bg-red-500 font-bold`} />
+</main>
+
+<style>
+  .button {
+    @apply text-center p-4 flex bg-red-500 font-bold;
+  }
+</style>
