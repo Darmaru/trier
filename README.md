@@ -88,6 +88,8 @@ Trier handles the common places where Tailwind class lists appear:
 - Vue `<script setup>` custom class helper calls
 - Svelte static classes, `class={...}` arrays/object keys, component class props, nested helper calls, static template literal helpers, and `<style>` `@apply`
 - Astro static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, nested frontmatter helper calls, static template literal helpers, and `<style>` `@apply`
+- Angular static classes, `ngClass`, and `[ngClass]` quoted fragments in ternaries, arrays, and object keys
+- Laravel Blade / PHP static classes, Blade component attributes, and Blade `@class(...)` quoted fragments
 - CSS/SCSS `@apply`
 - Vue `<style>` `@apply`
 - Custom attributes such as `data-classes`
@@ -100,6 +102,7 @@ class
 className
 :class
 v-bind:class
+ngClass
 [ngClass]
 class:list
 ```
@@ -183,7 +186,7 @@ Svelte support includes static classes, `class={...}` quoted fragments, arrays/o
 
 Astro support includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
 
-PHP files can be included in folder globs and may work through the fallback text processor, but they remain best-effort in the current test matrix.
+Angular and Laravel Blade / PHP have partial fallback support. Angular coverage includes static `class`, `ngClass`, and quoted fragments inside `[ngClass]` expressions. Blade/PHP coverage includes static classes, Blade component attributes, and quoted fragments inside Blade `@class(...)`; generic PHP arrays and interpolated Blade/PHP strings stay no-op.
 
 See [Framework Support Roadmap](docs/framework-support.md) for the working support matrix and planned stabilization steps.
 

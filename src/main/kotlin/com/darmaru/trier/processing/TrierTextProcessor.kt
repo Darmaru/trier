@@ -11,6 +11,7 @@ class TrierTextProcessor(
         candidates += collectAttributeCandidates(text, settings)
         candidates += collectBracedAttributeCandidates(text, settings)
         candidates += collectApplyCandidates(text)
+        candidates += collectBladeClassCandidates(text)
         candidates += collectTaggedTemplateCandidates(text, settings)
         candidates += collectFunctionCallCandidates(text, settings)
 
@@ -132,6 +133,39 @@ class TrierTextProcessor(
                 )
             }.toList()
     }
+
+    private fun collectBladeClassCandidates(text: String): List<SortCandidate> {
+        val replacements = mutableListOf<SortCandidate>()
+        var index = 0
+        while (index < text.length) {
+            if (!text.startsWith("@class", index)) {
+                index++
+                continue
+            }
+            var cursor = index + "@class".length
+            while (cursor < text.length && text[cursor].isWhitespace()) {
+                cursor++
+            }
+            if (cursor >= text.length || text[cursor] != '(') {
+                index = cursor + 1
+                continue
+            }
+            val end = findMatchingParen(text, cursor) ?: break
+            replacements += collectBladeStringLiteralCandidates(text, cursor + 1, end)
+            index = end + 1
+        }
+        return replacements
+    }
+
+    private fun collectBladeStringLiteralCandidates(
+        text: String,
+        start: Int,
+        end: Int,
+    ): List<SortCandidate> =
+        collectStringLiteralCandidates(text, start, end)
+            .filterNot { candidate ->
+                candidate.originalValue.contains("{{") || candidate.originalValue.contains("$")
+            }
 
     private fun collectTaggedTemplateCandidates(
         text: String,

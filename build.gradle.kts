@@ -145,6 +145,8 @@ intellijPlatform {
                 <li>Conservative fallback-backed support for Svelte and Astro static classes, braced class
                 expressions, Svelte array/object class values, Astro <code>class:list</code>, nested configured
                 helper calls, static template literal helpers, and style <code>@apply</code>.</li>
+                <li>Partial fallback coverage for Angular <code>ngClass</code> / <code>[ngClass]</code> and
+                Laravel Blade / PHP static classes, component attributes, and <code>@class(...)</code>.</li>
                 <li>CSS/SCSS <code>@apply</code>.</li>
                 <li>Custom attributes and custom class helper functions such as <code>cn</code>, <code>clsx</code>,
                 or tagged template helpers when configured.</li>
@@ -166,13 +168,14 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Svelte and Astro promoted to Supported.</strong></p>
+            <p><strong>Angular and Blade/PHP partial support.</strong></p>
             <ul>
-                <li>Promotes Svelte and Astro support after fixture hardening and manual smoke verification.</li>
-                <li>Adds real-smoke fixtures that combine supported syntax and documented no-op boundaries in
-                representative Svelte and Astro component files.</li>
-                <li>Documents Svelte and Astro support as conservative fallback-backed, with helper calls still using
-                Trier's configured <code>Functions</code>, for example <code>cn</code>.</li>
+                <li>Adds Angular fallback fixtures for static <code>class</code>, <code>ngClass</code>,
+                <code>[ngClass]</code> ternaries, arrays, object keys, and no-op boundaries.</li>
+                <li>Adds Blade/PHP fallback fixtures for static classes, component attributes,
+                <code>@class(...)</code>, interpolation no-ops, generic PHP array no-ops, and malformed no-ops.</li>
+                <li>Adds file-apply integration coverage for Angular <code>[ngClass]</code> and Blade
+                <code>@class(...)</code>.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

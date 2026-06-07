@@ -8,8 +8,8 @@ internal data class SortingFixture(
     val name: String,
     val extension: String,
 ) {
-    val inputPath: String = "fixtures/sorting/$area/$name/input.$extension"
-    val expectedPath: String = "fixtures/sorting/$area/$name/expected.$extension"
+    val inputPath: String = "fixtures/processing/$area/$name/input.$extension"
+    val expectedPath: String = "fixtures/processing/$area/$name/expected.$extension"
     val fileName: String = "$name.$extension"
 }
 

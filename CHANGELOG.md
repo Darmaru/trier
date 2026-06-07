@@ -2,6 +2,20 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.4.0] - 2026-06-07
+
+### Added
+
+- Added Angular fallback fixture coverage for static `class`, `ngClass`, `[ngClass]` ternaries, arrays, object keys, malformed no-op behavior, and unsupported `[class.foo]` no-op behavior.
+- Added Blade/PHP fallback fixture coverage for static classes, Blade component attributes, Blade `@class(...)`, interpolated Blade/PHP no-op behavior, generic PHP array no-op behavior, and malformed `@class` no-op behavior.
+- Added file-apply integration coverage for Angular `[ngClass]` and Blade `@class(...)`.
+
+### Changed
+
+- Promoted Angular and Laravel Blade / PHP from Best effort to Partial in the framework roadmap.
+- Included Blade `@class(...)` changes in folder dry-run reports instead of treating the directive as unsupported.
+- Moved processing fixture resources from `fixtures/sorting` to `fixtures/processing` to match their test package ownership.
+
 ## [0.3.4] - 2026-06-06
 
 ### Added
@@ -52,7 +66,7 @@ All notable changes to Trier are documented in this file.
 
 - Promoted Vue single-file component support to Supported after adding dedicated fixture coverage and completing a manual smoke pass.
 - Added a dedicated Vue fixture suite covering template class bindings, comment preservation, `<script setup>` helpers, `<style>` `@apply`, and malformed no-op behavior.
-- Added a shared sorting fixture harness using `fixtures/sorting/<area>/<case>/input.<ext>` and `expected.<ext>` so future framework regression suites can use the same layout.
+- Added a shared processing fixture harness using paired `input.<ext>` and `expected.<ext>` files so future framework regression suites can use the same layout.
 - Added HTML and CSS sorting fixtures for standard class attributes, custom attributes, `@apply`, and malformed no-op cases.
 - Added JSX and TSX sorting fixtures for `className` expressions, template literals, ternaries, arrays/object keys, and configured helper calls.
 

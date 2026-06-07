@@ -455,12 +455,13 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(phpOriginal, phpFile.readText())
         assertEquals(4, report.scanned)
         assertEquals(4, report.matched)
-        assertEquals(2, report.changed)
-        assertEquals(2, report.unchanged)
+        assertEquals(3, report.changed)
+        assertEquals(1, report.unchanged)
         assertEquals(0, report.updated)
         assertEquals(0, report.failed)
         val vueChange = report.changes.single { it.relativePath == "Component.vue" }
         val astroChange = report.changes.single { it.relativePath == "Component.astro" }
+        val phpChange = report.changes.single { it.relativePath == "component.php" }
         assertEquals(vueOriginal, vueChange.originalText)
         assertEquals(
             """
@@ -474,6 +475,11 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         assertEquals(
             """<div class:list={["flex bg-red-500 p-4 text-center font-bold"]}></div>""",
             astroChange.sortedText,
+        )
+        assertEquals(phpOriginal, phpChange.originalText)
+        assertEquals(
+            """<div @class(['flex bg-red-500 p-4 text-center font-bold' => active])></div>""",
+            phpChange.sortedText,
         )
     }
 
@@ -638,6 +644,46 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         val report = TrierSortService.getInstance().sortFile(project, virtualFile)
 
         assertEquals("""<Card className={"flex bg-red-500 p-4 text-center font-bold"} />""", file.readText())
+        assertEquals(1, report.changed)
+        assertEquals(1, report.updated)
+    }
+
+    fun testSortFileAppliesSupportedAngularChanges() {
+        val root = createTempDirectory("trier-file-angular-apply-test")
+        val file = root / "component.html"
+        file.writeText(
+            """<div [ngClass]="active ? 'text-center p-4 flex bg-red-500 font-bold' : 'font-bold flex p-4'"></div>""",
+        )
+        val virtualFile =
+            com.intellij.openapi.vfs.LocalFileSystem
+                .getInstance()
+                .refreshAndFindFileByNioFile(file)!!
+
+        val report = TrierSortService.getInstance().sortFile(project, virtualFile)
+
+        assertEquals(
+            """<div [ngClass]="active ? 'flex bg-red-500 p-4 text-center font-bold' : 'flex p-4 font-bold'"></div>""",
+            file.readText(),
+        )
+        assertEquals(1, report.changed)
+        assertEquals(1, report.updated)
+    }
+
+    fun testSortFileAppliesSupportedBladeChanges() {
+        val root = createTempDirectory("trier-file-blade-apply-test")
+        val file = root / "component.blade.php"
+        file.writeText("""<div @class(['text-center p-4 flex bg-red-500 font-bold' => active])></div>""")
+        val virtualFile =
+            com.intellij.openapi.vfs.LocalFileSystem
+                .getInstance()
+                .refreshAndFindFileByNioFile(file)!!
+
+        val report = TrierSortService.getInstance().sortFile(project, virtualFile)
+
+        assertEquals(
+            """<div @class(['flex bg-red-500 p-4 text-center font-bold' => active])></div>""",
+            file.readText(),
+        )
         assertEquals(1, report.changed)
         assertEquals(1, report.updated)
     }
