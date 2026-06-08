@@ -45,7 +45,7 @@ class TrierTextProcessor(
                     return@flatMap emptyList()
                 }
                 val value = match.groupValues[3]
-                if (value.contains('<')) {
+                if (shouldSkipClassAttributeValue(name, value)) {
                     return@flatMap emptyList()
                 }
                 if (isDynamicClassAttributeName(name) && TrierPsiProcessor.hasUnterminatedQuotedLiteral(value)) {
@@ -140,6 +140,10 @@ class TrierTextProcessor(
         while (index < text.length) {
             if (!text.startsWith("@class", index)) {
                 index++
+                continue
+            }
+            if (index > 0 && text[index - 1] == '@') {
+                index += "@class".length
                 continue
             }
             var cursor = index + "@class".length

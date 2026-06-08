@@ -613,6 +613,24 @@ class TrierPsiProcessorPlatformTest : BasePlatformTestCase() {
         )
     }
 
+    fun testPsiSkipsStaticClassAttributeWithInterpolation() {
+        val text = """<div class="{{ active ? 'text-center p-4 flex bg-red-500 font-bold' : '' }}"></div>"""
+        val file = myFixture.configureByText("test.html", text)
+
+        val result = processor().process(file, text, settings, useFallback = false)
+
+        assertEquals(text, result)
+    }
+
+    fun testPsiSkipsNgClassExpressionWithPipe() {
+        val text = """<div [ngClass]="'text-center p-4 flex bg-red-500 font-bold' | classMap"></div>"""
+        val file = myFixture.configureByText("test.html", text)
+
+        val result = processor().process(file, text, settings, useFallback = false)
+
+        assertEquals(text, result)
+    }
+
     private fun processor(): TrierPsiProcessor =
         TrierPsiProcessor(
             sortStrings = { values -> values.map(::sortClassesStub) },

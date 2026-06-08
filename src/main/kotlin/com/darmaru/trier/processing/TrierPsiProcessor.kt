@@ -123,7 +123,7 @@ class TrierPsiProcessor(
         }
 
         val value = attribute.value ?: return null
-        if (value.contains('<')) {
+        if (shouldSkipClassAttributeValue(attribute.name, value)) {
             return null
         }
         if (isDynamicClassAttributeName(attribute.name) && hasUnterminatedQuotedLiteral(value)) {

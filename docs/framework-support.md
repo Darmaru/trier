@@ -32,8 +32,8 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | Vue SFC | Supported | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation, dedicated fixture coverage, advanced malformed binding no-op coverage, manual smoke pass | Broader real-world fixture coverage as new Vue patterns are reported. |
 | Svelte | Supported | Folder globs include `.svelte`; conservative fallback sorts static `class`, quoted fragments in `class={...}` arrays and object keys, component class props, SvelteKit-style `$props()` class composition, configured script helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run, file apply, real-smoke fixture, and manual smoke coverage exists | Demand-driven real-world edge cases; PSI-backed precision only if the IDE API becomes worth the complexity. |
 | Astro | Supported | Folder globs include `.astro`; conservative fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, `class:list` arrays/object keys/nested arrays, component class attributes, layout/frontmatter variants, configured frontmatter helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; interpolated template literals have no-op fixture coverage; folder dry-run, file apply, real-smoke fixture, and manual smoke coverage exists | Demand-driven real-world edge cases; PSI-backed precision only if the IDE API becomes worth the complexity. |
-| Angular | Partial | Default attributes include `ngClass` and `[ngClass]`; fallback sorts static `class`, `ngClass`, and quoted fragments in `[ngClass]` ternaries, arrays, and object keys; unsupported `[class.foo]` and malformed `[ngClass]` have no-op coverage; file apply coverage exists through `.html` files | Custom pipes, deeper Angular template expression edge cases, formatting preservation smoke. |
-| Laravel Blade / PHP | Partial | Folder globs include `.php`; fallback sorts static `class`, Blade component attributes, and quoted fragments in Blade `@class(...)`; interpolated Blade/PHP strings, generic PHP arrays, and malformed `@class` have no-op coverage; file apply coverage exists | Dedicated PHP parser path only if demand justifies it; escaped directives, mixed PHP/HTML edge cases, broader Blade component syntax. |
+| Angular | Partial | Default attributes include `ngClass` and `[ngClass]`; fallback sorts static `class`, `ngClass`, and quoted fragments in `[ngClass]` ternaries, arrays, and object keys; static interpolated class attributes, unsupported `[class.foo]`, custom-pipe `[ngClass]`, and malformed `[ngClass]` have no-op coverage; file apply coverage exists through `.html` files | Deeper Angular template expression edge cases, additional formatting preservation smoke. |
+| Laravel Blade / PHP | Partial | Folder globs include `.php`; fallback sorts static `class`, Blade component attributes, and quoted fragments in Blade `@class(...)`; escaped `@@class(...)`, static interpolated class attributes, interpolated Blade/PHP strings, generic PHP arrays, malformed `@class`, and mixed-template fixtures have no-op coverage; file apply coverage exists | Dedicated PHP parser path only if demand justifies it; broader Blade component syntax. |
 | Other template engines | Planned | None | Needs demand-driven investigation. |
 
 ## Stabilization Track
@@ -155,9 +155,11 @@ Investigate:
 - [x] `[ngClass]="{ '...': condition }"`.
 - [x] `[class.foo]` no-op behavior.
 - [x] Malformed `[ngClass]` no-op behavior.
+- [x] Custom pipe `[ngClass]` no-op behavior.
+- [x] Static class interpolation no-op behavior.
 - [x] File-level apply coverage through `.html` files.
-- [ ] Formatting preservation in Angular templates.
-- [ ] Custom pipes and complex Angular expression no-op boundaries.
+- [x] Basic formatting preservation in Angular templates.
+- [ ] Complex Angular expression no-op boundaries.
 
 ### Blade / PHP
 
@@ -171,8 +173,10 @@ Investigate:
 - [x] Interpolated Blade/PHP string no-op behavior.
 - [x] Generic PHP arrays that contain class strings stay no-op.
 - [x] Malformed `@class` no-op behavior.
+- [x] Escaped `@@class(...)` no-op behavior.
+- [x] Static class interpolation no-op behavior.
+- [x] Mixed PHP/HTML fixture coverage.
 - [x] File-level apply coverage.
-- [ ] Escaped directives and mixed PHP/HTML edge cases.
 - [ ] Dedicated PHP arrays only if a safe parser-backed path is added.
 
 ## Near-Term Milestones
@@ -212,6 +216,8 @@ Manual smoke checklist completed before promotion:
 - [x] Add Angular and Blade fixture suites.
 - [x] Add conservative Blade `@class(...)` fallback support.
 - [x] Keep generic PHP arrays no-op until a safe parser-backed path exists.
+- Keep Angular and Blade/PHP support fallback-only in 0.4.x; do not add Angular/PHP/Blade PSI dependencies until demand justifies the compatibility and verifier cost.
+- Keep shared attribute no-op guards aligned between XML/HTML PSI processing and fallback text processing.
 - Add project-level reports for unsupported files and skipped candidates.
 
 ## Future Tooling Ideas

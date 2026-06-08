@@ -23,6 +23,7 @@ class TrierAngularFixtureTest {
             "ngclass-string",
             "ngclass-expression",
             "ngclass-array-object",
+            "ngclass-formatting",
         ).forEach(::assertAngularFixture)
     }
 
@@ -30,6 +31,8 @@ class TrierAngularFixtureTest {
     fun `leaves unsupported angular fallback fixtures unchanged`() {
         listOf(
             "class-binding-noop",
+            "class-interpolation-noop",
+            "ngclass-pipe-noop",
             "malformed-ngclass-noop",
         ).forEach(::assertAngularFixture)
     }

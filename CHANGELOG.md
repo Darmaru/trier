@@ -2,6 +2,22 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.4.1] - 2026-06-09
+
+### Added
+
+- Added mixed Blade/PHP template and Angular formatting fixture coverage for partial framework support.
+
+### Changed
+
+- Aligned XML/HTML PSI attribute processing with fallback no-op guards for interpolated class attributes and Angular pipes.
+
+### Fixed
+
+- Kept escaped Blade `@@class(...)` directives as no-op fallback candidates.
+- Kept Angular `[ngClass]` expressions that use custom pipes as no-op fallback candidates.
+- Kept static class attributes with Blade/Angular/PHP interpolation as no-op fallback candidates.
+
 ## [0.4.0] - 2026-06-07
 
 ### Added

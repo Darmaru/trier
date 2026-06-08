@@ -22,6 +22,7 @@ class TrierBladePhpFixtureTest {
             "static-class",
             "component-attributes",
             "class-directive",
+            "mixed-template",
         ).forEach(::assertBladeFixture)
     }
 
@@ -29,8 +30,10 @@ class TrierBladePhpFixtureTest {
     fun `leaves unsupported blade and php fallback fixtures unchanged`() {
         listOf(
             "class-directive-interpolation-noop",
+            "escaped-class-directive-noop",
             "generic-php-array-noop",
             "malformed-class-directive-noop",
+            "static-class-interpolation-noop",
         ).forEach(::assertBladeFixture)
     }
 

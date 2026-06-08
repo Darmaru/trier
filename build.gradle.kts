@@ -168,14 +168,13 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Angular and Blade/PHP partial support.</strong></p>
+            <p><strong>Angular and Blade/PHP fallback hardening.</strong></p>
             <ul>
-                <li>Adds Angular fallback fixtures for static <code>class</code>, <code>ngClass</code>,
-                <code>[ngClass]</code> ternaries, arrays, object keys, and no-op boundaries.</li>
-                <li>Adds Blade/PHP fallback fixtures for static classes, component attributes,
-                <code>@class(...)</code>, interpolation no-ops, generic PHP array no-ops, and malformed no-ops.</li>
-                <li>Adds file-apply integration coverage for Angular <code>[ngClass]</code> and Blade
-                <code>@class(...)</code>.</li>
+                <li>Keeps escaped Blade <code>@@class(...)</code> directives unchanged.</li>
+                <li>Keeps Angular <code>[ngClass]</code> expressions with custom pipes unchanged.</li>
+                <li>Keeps static class attributes with Blade/Angular/PHP interpolation unchanged.</li>
+                <li>Aligns XML/HTML PSI attribute processing with fallback no-op guards.</li>
+                <li>Adds mixed Blade/PHP template and Angular formatting fixture coverage.</li>
             </ul>
             """.trimIndent()
         ideaVersion {
