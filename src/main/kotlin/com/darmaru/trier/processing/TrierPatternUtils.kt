@@ -1,7 +1,7 @@
 package com.darmaru.trier.processing
 
 private val DEFAULT_ATTRIBUTES =
-    listOf("class", "className", ":class", "v-bind:class", "ngClass", "[ngClass]", "class:list")
+    listOf("class", "className", ":class", "v-bind:class", "ngClass", "[class]", "[ngClass]", "class:list")
 
 fun buildAttributePredicates(customValues: List<String>): List<(String) -> Boolean> =
     (DEFAULT_ATTRIBUTES + customValues)
@@ -17,7 +17,7 @@ internal fun shouldSkipClassAttributeValue(
 ): Boolean =
     value.contains('<') ||
         (!isDynamicClassAttributeName(name) && containsStaticAttributeInterpolation(value)) ||
-        (name == "[ngClass]" && containsUnquotedPipe(value))
+        (isAngularClassBindingName(name) && containsComplexAngularExpression(value))
 
 internal fun containsStaticAttributeInterpolation(value: String): Boolean = value.contains("{{") || value.contains("$")
 
@@ -32,6 +32,28 @@ internal fun containsUnquotedPipe(value: String): Boolean {
     }
     return false
 }
+
+internal fun containsUnquotedCall(value: String): Boolean {
+    var index = 0
+    while (index < value.length) {
+        when (val char = value[index]) {
+            '\'', '"', '`' -> index = findQuotedLiteralEnd(value, index, char) ?: return false
+            '(' -> {
+                val previous = value.previousNonWhitespace(index)
+                if (previous != null && previous.isIdentifierPart()) {
+                    return true
+                }
+            }
+        }
+        index++
+    }
+    return false
+}
+
+private fun isAngularClassBindingName(name: String): Boolean = name == "[class]" || name == "[ngClass]"
+
+private fun containsComplexAngularExpression(value: String): Boolean =
+    containsUnquotedPipe(value) || containsUnquotedCall(value)
 
 fun buildFunctionPredicates(customValues: List<String>): List<(String) -> Boolean> =
     customValues.distinct().map(::toNamePredicate)
@@ -94,3 +116,17 @@ private fun findQuotedLiteralEnd(
     }
     return null
 }
+
+private fun String.previousNonWhitespace(index: Int): Char? {
+    var cursor = index - 1
+    while (cursor >= 0) {
+        val char = this[cursor]
+        if (!char.isWhitespace()) {
+            return char
+        }
+        cursor--
+    }
+    return null
+}
+
+private fun Char.isIdentifierPart(): Boolean = isLetterOrDigit() || this == '_' || this == '$'

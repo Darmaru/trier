@@ -19,27 +19,35 @@ class TrierAngularFixtureTest {
     @Test
     fun `sorts supported angular fallback fixtures`() {
         listOf(
-            "static-class",
-            "ngclass-string",
-            "ngclass-expression",
-            "ngclass-array-object",
-            "ngclass-formatting",
-        ).forEach(::assertAngularFixture)
+            "static-class" to "html",
+            "class-binding" to "html",
+            "inline-template" to "ts",
+            "ngclass-string" to "html",
+            "ngclass-expression" to "html",
+            "ngclass-array-object" to "html",
+            "ngclass-formatting" to "html",
+        ).forEach { (name, extension) -> assertAngularFixture(name, extension) }
     }
 
     @Test
     fun `leaves unsupported angular fallback fixtures unchanged`() {
         listOf(
+            "attr-class-binding-noop",
             "class-binding-noop",
             "class-interpolation-noop",
+            "ngclass-method-call-noop",
+            "ngclass-nested-ternary-pipe-noop",
             "ngclass-pipe-noop",
             "malformed-ngclass-noop",
         ).forEach(::assertAngularFixture)
     }
 
-    private fun assertAngularFixture(name: String) {
+    private fun assertAngularFixture(
+        name: String,
+        extension: String = "html",
+    ) {
         SortingFixtureSupport.assertTextFixture(
-            sortingFixture = SortingFixture("angular", name, "html"),
+            sortingFixture = SortingFixture("angular", name, extension),
             settings = settings,
         )
     }

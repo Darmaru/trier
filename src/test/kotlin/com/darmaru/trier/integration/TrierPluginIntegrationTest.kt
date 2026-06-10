@@ -553,6 +553,69 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         )
     }
 
+    fun testSortFolderDryRunReportsSupportedAngularInlineTemplateChangesThroughDefaultFrontendGlob() {
+        val root = createTempDirectory("trier-folder-angular-inline-template-dry-run-test")
+        val appDir = root / "src/app"
+        appDir.createDirectories()
+        val file = appDir / "app.component.ts"
+        val original =
+            """
+            import { Component } from "@angular/core"
+
+            @Component({
+              selector: "app-root",
+              template: `
+                <section
+                  class="text-center p-4 flex bg-red-500 font-bold"
+                  [class]="active ? 'font-bold flex p-4' : ''"
+                  [ngClass]="{ 'tracking-wide text-xs px-2 py-0.5': compact }"
+                ></section>
+                <div [ngClass]="classMap('text-center p-4 flex bg-red-500 font-bold')"></div>
+              `,
+            })
+            export class AppComponent {}
+            """.trimIndent()
+        file.writeText(original)
+
+        val report =
+            TrierSortService
+                .getInstance()
+                .sortFolder(
+                    project,
+                    root.toString(),
+                    "**/*.{html,js,jsx,ts,tsx,vue,astro,svelte,css,scss,php}",
+                    dryRun = true,
+                )
+
+        assertEquals(original, file.readText())
+        assertEquals(1, report.scanned)
+        assertEquals(1, report.matched)
+        assertEquals(1, report.changed)
+        assertEquals(0, report.updated)
+        assertEquals(0, report.failed)
+        assertEquals("src/app/app.component.ts", report.changes.single().relativePath)
+        assertEquals(original, report.changes.single().originalText)
+        assertEquals(
+            """
+            import { Component } from "@angular/core"
+
+            @Component({
+              selector: "app-root",
+              template: `
+                <section
+                  class="flex bg-red-500 p-4 text-center font-bold"
+                  [class]="active ? 'flex p-4 font-bold' : ''"
+                  [ngClass]="{ 'px-2 py-0.5 text-xs tracking-wide': compact }"
+                ></section>
+                <div [ngClass]="classMap('text-center p-4 flex bg-red-500 font-bold')"></div>
+              `,
+            })
+            export class AppComponent {}
+            """.trimIndent(),
+            report.changes.single().sortedText,
+        )
+    }
+
     fun testSortFolderReportsInvalidGlobPattern() {
         val root = createTempDirectory("trier-folder-invalid-glob-test")
         val report = TrierSortService.getInstance().sortFolder(project, root.toString(), "[", dryRun = true)

@@ -2,6 +2,19 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.4.2] - 2026-06-11
+
+### Added
+
+- Added Angular `[class]` fallback support for quoted class fragments.
+- Added Angular inline component template fixture coverage.
+- Added folder dry-run integration coverage for Angular inline templates through the default frontend glob.
+
+### Fixed
+
+- Kept Angular `[attr.class]`, method-call class bindings, and pipe-based nested expressions as no-op fallback candidates.
+- Kept Blade comments, `@verbatim` blocks, and PHP heredoc/nowdoc template strings as no-op fallback ranges.
+
 ## [0.4.1] - 2026-06-09
 
 ### Added

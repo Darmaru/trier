@@ -37,6 +37,14 @@ class TrierBladePhpFixtureTest {
         ).forEach(::assertBladeFixture)
     }
 
+    @Test
+    fun `keeps ignored blade and php ranges unchanged while sorting supported siblings`() {
+        listOf(
+            "heredoc-noop",
+            "verbatim-and-comments-noop",
+        ).forEach(::assertBladeFixture)
+    }
+
     private fun assertBladeFixture(name: String) {
         SortingFixtureSupport.assertTextFixture(
             sortingFixture = SortingFixture("blade", name, "blade.php"),

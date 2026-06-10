@@ -7,6 +7,7 @@ class TrierTextProcessor(
         text: String,
         settings: TrierResolvedSettings,
     ): String {
+        val ignoredRanges = collectIgnoredRanges(text)
         val candidates = mutableListOf<SortCandidate>()
         candidates += collectAttributeCandidates(text, settings)
         candidates += collectBracedAttributeCandidates(text, settings)
@@ -19,7 +20,7 @@ class TrierTextProcessor(
             return text
         }
 
-        val replacements = buildReplacements(candidates)
+        val replacements = buildReplacements(candidates.filterNot { it.isInsideAny(ignoredRanges) })
         if (replacements.isEmpty()) {
             return text
         }
@@ -285,6 +286,58 @@ class TrierTextProcessor(
         }
     }
 
+    private fun collectIgnoredRanges(text: String): List<IgnoredRange> =
+        buildList {
+            addAll(findDelimitedRanges(text, "{{--", "--}}"))
+            addAll(findDelimitedRanges(text, "@verbatim", "@endverbatim"))
+            addAll(findPhpHereDocRanges(text))
+        }
+
+    private fun findDelimitedRanges(
+        text: String,
+        startToken: String,
+        endToken: String,
+    ): List<IgnoredRange> {
+        val ranges = mutableListOf<IgnoredRange>()
+        var index = 0
+        while (index < text.length) {
+            val start = text.indexOf(startToken, index)
+            if (start < 0) {
+                break
+            }
+            val end = text.indexOf(endToken, start + startToken.length)
+            if (end < 0) {
+                ranges += IgnoredRange(start, text.length)
+                break
+            }
+            ranges += IgnoredRange(start, end + endToken.length)
+            index = end + endToken.length
+        }
+        return ranges
+    }
+
+    private fun findPhpHereDocRanges(text: String): List<IgnoredRange> {
+        val ranges = mutableListOf<IgnoredRange>()
+        val startRegex = Regex("""<<<\s*(?:['"]?)([A-Za-z_][A-Za-z0-9_]*)(?:['"]?)[^\r\n]*(?:\r?\n)""")
+        var searchStart = 0
+        while (searchStart < text.length) {
+            val match = startRegex.find(text, searchStart) ?: break
+            val label = Regex.escape(match.groupValues[1])
+            val endRegex = Regex("""(?m)^[ \t]*$label;?[ \t]*(?:\r?\n|$)""")
+            val end = endRegex.find(text, match.range.last + 1)
+            if (end == null) {
+                ranges += IgnoredRange(match.range.first, text.length)
+                break
+            }
+            ranges += IgnoredRange(match.range.first, end.range.last + 1)
+            searchStart = end.range.last + 1
+        }
+        return ranges
+    }
+
+    private fun SortCandidate.isInsideAny(ranges: List<IgnoredRange>): Boolean =
+        ranges.any { range -> start >= range.start && end <= range.end }
+
     private fun readIdentifierBackward(
         text: String,
         index: Int,
@@ -389,4 +442,9 @@ class TrierTextProcessor(
     private fun Char.isIdentifierStart(): Boolean = isLetter() || this == '_' || this == '$'
 
     private fun Char.isIdentifierPart(): Boolean = isLetterOrDigit() || this == '_' || this == '$'
+
+    private data class IgnoredRange(
+        val start: Int,
+        val end: Int,
+    )
 }
