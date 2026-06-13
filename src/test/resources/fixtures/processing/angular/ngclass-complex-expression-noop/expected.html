@@ -1,0 +1,2 @@
+<div [ngClass]="($any(state).classes | classMap) ? 'text-center p-4 flex bg-red-500 font-bold' : 'font-bold flex p-4'"></div>
+<div [class]="service.getClasses('text-center p-4 flex bg-red-500 font-bold', active && 'font-bold flex p-4')"></div>

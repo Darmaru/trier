@@ -288,6 +288,8 @@ class TrierTextProcessor(
 
     private fun collectIgnoredRanges(text: String): List<IgnoredRange> =
         buildList {
+            addAll(findDelimitedRanges(text, "<!--", "-->"))
+            addAll(findDelimitedRanges(text, "/*", "*/"))
             addAll(findDelimitedRanges(text, "{{--", "--}}"))
             addAll(findDelimitedRanges(text, "@verbatim", "@endverbatim"))
             addAll(findPhpHereDocRanges(text))

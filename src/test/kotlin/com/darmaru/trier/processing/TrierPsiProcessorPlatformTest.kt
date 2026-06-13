@@ -29,6 +29,35 @@ class TrierPsiProcessorPlatformTest : BasePlatformTestCase() {
         )
     }
 
+    fun testRunsBladeClassFallbackAfterPsiAttributeProcessing() {
+        val text =
+            """
+            <div
+                class="text-center p-4 flex bg-red-500 font-bold"
+                @class([
+                    'text-center p-4 flex bg-red-500 font-bold' => active,
+                    'font-bold flex p-4',
+                ])
+            ></div>
+            """.trimIndent()
+        val file = myFixture.configureByText("component.blade.php", text)
+
+        val result = processor().process(file, text, settings)
+
+        assertEquals(
+            """
+            <div
+                class="flex bg-red-500 p-4 text-center font-bold"
+                @class([
+                    'flex bg-red-500 p-4 text-center font-bold' => active,
+                    'flex p-4 font-bold',
+                ])
+            ></div>
+            """.trimIndent(),
+            result,
+        )
+    }
+
     fun testProcessesCssApplyThroughRealPsi() {
         val text = """.button { @apply flex bg-red-500 p-4 text-center font-bold; }"""
         val file = myFixture.configureByText("test.css", text)

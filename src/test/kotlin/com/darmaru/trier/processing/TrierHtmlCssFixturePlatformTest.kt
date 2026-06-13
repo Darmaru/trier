@@ -34,7 +34,9 @@ class TrierHtmlCssFixturePlatformTest : BasePlatformTestCase() {
     fun testCssFixturesThroughRealPsi() {
         listOf(
             "apply-rule",
+            "block-comment-noop",
             "malformed-apply-noop",
+            "nested-at-rule-apply",
         ).forEach { name ->
             SortingFixtureSupport.assertPsiFixture(
                 fixture = myFixture,

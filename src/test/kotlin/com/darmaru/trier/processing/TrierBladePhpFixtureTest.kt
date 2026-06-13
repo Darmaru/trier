@@ -29,7 +29,9 @@ class TrierBladePhpFixtureTest {
     @Test
     fun `leaves unsupported blade and php fallback fixtures unchanged`() {
         listOf(
+            "attributes-class-merge-noop",
             "class-directive-interpolation-noop",
+            "escaped-component-attribute-noop",
             "escaped-class-directive-noop",
             "generic-php-array-noop",
             "malformed-class-directive-noop",
@@ -40,7 +42,9 @@ class TrierBladePhpFixtureTest {
     @Test
     fun `keeps ignored blade and php ranges unchanged while sorting supported siblings`() {
         listOf(
+            "class-directive-comments",
             "heredoc-noop",
+            "html-comment-noop",
             "verbatim-and-comments-noop",
         ).forEach(::assertBladeFixture)
     }

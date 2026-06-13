@@ -2,6 +2,25 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.4.3] - 2026-06-14
+
+### Added
+
+- Added a `verifyPluginRecommended` Gradle task for local compatibility checks against JetBrains recommended IDE versions while keeping CI on the current target IDE.
+- Added nested CSS at-rule fixture coverage for `@apply` sorting.
+- Added Angular complex expression no-op fixture coverage.
+- Added Blade escaped component attribute and `$attributes->class(...)` / `$attributes->merge(...)` no-op fixture coverage.
+
+### Changed
+
+- Raised Gradle daemon JVM memory settings for local and CI IntelliJ Platform test and verifier runs.
+
+### Fixed
+
+- Kept HTML comments and block comments as no-op fallback ranges while still sorting supported sibling candidates.
+- Kept comments inside Blade `@class(...)` as no-op ranges while sorting supported sibling class fragments.
+- Sorted Blade `@class(...)` directives in files that also contain PSI-backed `class="..."` attributes.
+
 ## [0.4.2] - 2026-06-11
 
 ### Added

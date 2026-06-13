@@ -100,6 +100,12 @@ sourceSets {
     }
 }
 
+val useRecommendedPluginVerifier =
+    providers.gradleProperty("pluginVerifierRecommended").isPresent ||
+        gradle.startParameter.taskNames.any { taskName ->
+            taskName == "verifyPluginRecommended" || taskName.endsWith(":verifyPluginRecommended")
+        }
+
 intellijPlatform {
     pluginConfiguration {
         name = providers.gradleProperty("pluginName")
@@ -168,12 +174,16 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Angular and Blade/PHP fallback expansion.</strong></p>
+            <p><strong>Fallback no-op hardening and verifier workflow.</strong></p>
             <ul>
-                <li>Adds Angular <code>[class]</code> fallback support for quoted class fragments.</li>
-                <li>Adds Angular inline component template fixture coverage.</li>
-                <li>Keeps Angular <code>[attr.class]</code>, method-call class bindings, and pipe-based nested expressions unchanged.</li>
-                <li>Keeps Blade comments, <code>@verbatim</code> blocks, and PHP heredoc/nowdoc template strings unchanged.</li>
+                <li>Keeps HTML comments and block comments unchanged in fallback-processed templates and styles.</li>
+                <li>Adds fixture coverage for sorting supported sibling candidates around ignored comment ranges.</li>
+                <li>Sorts Blade <code>@class(...)</code> directives in files that also contain PSI-backed <code>class="..."</code> attributes.</li>
+                <li>Adds nested CSS at-rule fixture coverage for <code>@apply</code> sorting.</li>
+                <li>Adds Angular complex expression no-op fixture coverage.</li>
+                <li>Adds Blade escaped component attribute and <code>${'$'}attributes-&gt;class(...)</code> / <code>${'$'}attributes-&gt;merge(...)</code> no-op fixture coverage.</li>
+                <li>Adds a local <code>verifyPluginRecommended</code> Gradle task for JetBrains recommended IDE compatibility checks.</li>
+                <li>Raises Gradle daemon JVM memory settings for IntelliJ Platform test and verifier runs.</li>
             </ul>
             """.trimIndent()
         ideaVersion {
@@ -193,7 +203,7 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            if (providers.gradleProperty("pluginVerifierRecommended").isPresent) {
+            if (useRecommendedPluginVerifier) {
                 recommended()
             } else {
                 current()
@@ -223,6 +233,12 @@ val jacocoClassExcludes =
     )
 
 tasks {
+    register("verifyPluginRecommended") {
+        group = "verification"
+        description = "Runs plugin verifier against JetBrains recommended IDE versions."
+        dependsOn("verifyPlugin")
+    }
+
     withType<BuildSearchableOptionsTask>().configureEach {
         // The headless IDE can initialize Settings pages outside this plugin and attempt Marketplace requests.
         // Searchable options are not required for Trier runtime or publishing, so skip this flaky UI indexing task.

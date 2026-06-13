@@ -1,0 +1,9 @@
+/*
+.commented {
+  @apply text-center p-4 flex bg-red-500 font-bold;
+}
+*/
+
+.button {
+  @apply flex bg-red-500 p-4 text-center font-bold;
+}

@@ -94,8 +94,10 @@ class TrierPsiProcessor(
             )
         }
 
+        val shouldRunFallbackAfterPsi = useFallback && limitRange == null && hasFallbackOnlySyntax(originalText)
+
         if (candidates.isEmpty()) {
-            return if (useFallback && !foundPsiTargetInRange) {
+            return if (useFallback && (!foundPsiTargetInRange || shouldRunFallbackAfterPsi)) {
                 fallbackTextProcessor.process(originalText, settings)
             } else {
                 originalText
@@ -104,15 +106,26 @@ class TrierPsiProcessor(
 
         val replacements = buildReplacements(candidates)
         if (replacements.isEmpty()) {
-            return originalText
+            return if (shouldRunFallbackAfterPsi) {
+                fallbackTextProcessor.process(originalText, settings)
+            } else {
+                originalText
+            }
         }
 
         val result = StringBuilder(originalText)
         for (replacement in replacements.distinctBy { it.start to it.end }.sortedByDescending { it.start }) {
             result.replace(replacement.start, replacement.end, replacement.value)
         }
-        return result.toString()
+        val psiResult = result.toString()
+        return if (shouldRunFallbackAfterPsi) {
+            fallbackTextProcessor.process(psiResult, settings)
+        } else {
+            psiResult
+        }
     }
+
+    private fun hasFallbackOnlySyntax(text: String): Boolean = text.contains("@class")
 
     private fun collectXmlAttributeCandidates(
         attribute: XmlAttribute,

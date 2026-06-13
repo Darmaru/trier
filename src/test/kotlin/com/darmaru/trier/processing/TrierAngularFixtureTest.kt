@@ -35,6 +35,7 @@ class TrierAngularFixtureTest {
             "attr-class-binding-noop",
             "class-binding-noop",
             "class-interpolation-noop",
+            "ngclass-complex-expression-noop",
             "ngclass-method-call-noop",
             "ngclass-nested-ternary-pipe-noop",
             "ngclass-pipe-noop",

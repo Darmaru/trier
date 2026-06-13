@@ -177,7 +177,7 @@ Node.js is still required because the Tailwind sorter runs in Node.js. The bundl
 
 ## Framework Coverage
 
-Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, TSX, CSS, SCSS `@apply`, and Vue single-file components. Svelte and Astro are supported through the conservative fallback processor, dedicated fixtures, and manual smoke coverage.
+Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, TSX, CSS, SCSS `@apply` including nested at-rules, and Vue single-file components. Svelte and Astro are supported through the conservative fallback processor, dedicated fixtures, and manual smoke coverage.
 
 Vue support is enabled through the optional bundled dependency `org.jetbrains.plugins.vue`.
 
@@ -187,7 +187,7 @@ Svelte support includes static classes, `class={...}` quoted fragments, arrays/o
 
 Astro support includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
 
-Angular and Laravel Blade / PHP have partial fallback support. Angular coverage includes static `class`, `ngClass`, and quoted fragments inside `[class]` / `[ngClass]` expressions and inline component templates. Blade/PHP coverage includes static classes, Blade component attributes, and quoted fragments inside Blade `@class(...)`; Blade comments, `@verbatim` blocks, PHP heredoc/nowdoc strings, generic PHP arrays, and interpolated Blade/PHP strings stay no-op.
+Angular and Laravel Blade / PHP have partial fallback support. Angular coverage includes static `class`, `ngClass`, and quoted fragments inside `[class]` / `[ngClass]` expressions and inline component templates; complex Angular expressions stay no-op. Blade/PHP coverage includes static classes, Blade component attributes, and quoted fragments inside Blade `@class(...)`; escaped component `::class`, `$attributes->class(...)` / `$attributes->merge(...)`, HTML comments, block comments, Blade comments, `@verbatim` blocks, PHP heredoc/nowdoc strings, generic PHP arrays, and interpolated Blade/PHP strings stay no-op.
 
 See [Framework Support Roadmap](docs/framework-support.md) for the working support matrix and planned stabilization steps.
 
@@ -261,6 +261,18 @@ Run tests:
 
 ```bash
 ./gradlew test
+```
+
+Verify plugin compatibility against the current target IDE:
+
+```bash
+./gradlew verifyPlugin
+```
+
+Verify locally against JetBrains recommended IDE versions:
+
+```bash
+./gradlew verifyPluginRecommended
 ```
 
 Run the sandbox IDE:

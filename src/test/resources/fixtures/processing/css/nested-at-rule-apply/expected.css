@@ -1,0 +1,7 @@
+@media (min-width: 768px) {
+  @supports (display: grid) {
+    .card {
+      @apply flex bg-red-500 p-4 text-center font-bold;
+    }
+  }
+}
