@@ -1,0 +1,33 @@
+<main class="flex bg-red-500 p-4 text-center font-bold">
+  <button
+    class="flex bg-red-500 p-4 text-center font-bold"
+    ngClass="flex p-4 font-bold"
+    [ngClass]="active ? 'flex bg-red-500 p-4 text-center font-bold' : 'flex p-4 font-bold'"
+  >
+    Save
+  </button>
+
+  <section
+    [ngClass]="[
+      'flex bg-red-500 p-4 text-center font-bold',
+      active && 'flex p-4 font-bold',
+      { 'px-2 py-0.5 text-xs tracking-wide': compact }
+    ]"
+  >
+    Smoke
+  </section>
+
+  <aside
+    [ngClass]="{ 'px-2 py-0.5 text-xs tracking-wide': compact }"
+    [class.active]="active"
+    [attr.class]="active ? 'text-center p-4 flex bg-red-500 font-bold' : 'font-bold flex p-4'"
+  ></aside>
+
+  <div
+    [ngClass]="classMap('text-center p-4 flex bg-red-500 font-bold', active ? 'font-bold flex p-4' : '')"
+  ></div>
+
+  <div
+    [ngClass]="($any(state).classes | classMap) ? 'text-center p-4 flex bg-red-500 font-bold' : 'font-bold flex p-4'"
+  ></div>
+</main>

@@ -32,8 +32,8 @@ The goal is not to replace JetBrains Tailwind CSS completion, documentation, or 
 | Vue SFC | Supported | Static template classes, `:class` / `v-bind:class` quoted fragments, nested arrays/objects, `<script setup>` helper calls, `<style>` `@apply`, formatting/comment preservation, dedicated fixture coverage, advanced malformed binding no-op coverage, manual smoke pass | Broader real-world fixture coverage as new Vue patterns are reported. |
 | Svelte | Supported | Folder globs include `.svelte`; conservative fallback sorts static `class`, quoted fragments in `class={...}` arrays and object keys, component class props, SvelteKit-style `$props()` class composition, configured script helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; unsupported `class:` directives, interpolated template literals, and malformed expressions have no-op fixture coverage; folder dry-run, file apply, real-smoke fixture, and manual smoke coverage exists | Demand-driven real-world edge cases; PSI-backed precision only if the IDE API becomes worth the complexity. |
 | Astro | Supported | Folder globs include `.astro`; conservative fallback sorts static `class`, quoted fragments in `class={...}` / `className={...}`, `class:list` arrays/object keys/nested arrays, component class attributes, layout/frontmatter variants, configured frontmatter helper calls with nested args and static template literals after helpers are added to Trier's `Functions`, style `@apply`; interpolated template literals have no-op fixture coverage; folder dry-run, file apply, real-smoke fixture, and manual smoke coverage exists | Demand-driven real-world edge cases; PSI-backed precision only if the IDE API becomes worth the complexity. |
-| Angular | Partial | Default attributes include `ngClass`, `[class]`, and `[ngClass]`; fallback sorts static `class`, `ngClass`, and quoted fragments in `[class]` / `[ngClass]` ternaries, arrays, and object keys; inline component template fixtures are covered; static interpolated class attributes, unsupported `[class.foo]` / `[attr.class]`, method-call class bindings, custom-pipe `[class]` / `[ngClass]`, pipe-based nested expressions, complex Angular expressions, and malformed `[ngClass]` have no-op coverage; file apply coverage exists through `.html` files | Deeper Angular template expression edge cases, additional formatting preservation smoke. |
-| Laravel Blade / PHP | Partial | Folder globs include `.php`; fallback sorts static `class`, Blade component attributes, and quoted fragments in Blade `@class(...)`; escaped `@@class(...)`, escaped component `::class`, `$attributes->class(...)` / `$attributes->merge(...)`, HTML comments, block comments, Blade comments, `@verbatim` blocks, static interpolated class attributes, interpolated Blade/PHP strings, generic PHP arrays, PHP heredoc/nowdoc strings, malformed `@class`, and mixed-template fixtures have no-op coverage; file apply coverage exists | Dedicated PHP parser path only if demand justifies it; broader Blade component syntax. |
+| Angular | Partial | Default attributes include `ngClass`, `[class]`, and `[ngClass]`; fallback sorts static `class`, `ngClass`, and quoted fragments in `[class]` / `[ngClass]` ternaries, arrays, and object keys; inline component template and real-smoke fixtures are covered; static interpolated class attributes, unsupported `[class.foo]` / `[attr.class]`, method-call class bindings, custom-pipe `[class]` / `[ngClass]`, pipe-based nested expressions, complex Angular expressions, and malformed `[ngClass]` have no-op coverage; file apply coverage exists through `.html` files | Additional sandbox smoke before promotion. |
+| Laravel Blade / PHP | Partial | Folder globs include `.php`; fallback sorts static `class`, Blade component attributes, and quoted fragments in Blade `@class(...)`; real-smoke fixtures combine supported candidates and no-op boundaries; escaped `@@class(...)`, escaped component `::class`, `$attributes->class(...)` / `$attributes->merge(...)`, HTML comments, block comments, Blade comments, `@verbatim` blocks, static interpolated class attributes, interpolated Blade/PHP strings, generic PHP arrays, PHP heredoc/nowdoc strings, malformed `@class`, and mixed-template fixtures have no-op coverage; file apply coverage exists | Additional sandbox smoke before promotion; dedicated PHP arrays only if a safe parser-backed path is added. |
 | Other template engines | Planned | None | Needs demand-driven investigation. |
 
 ## Stabilization Track
@@ -165,6 +165,9 @@ Investigate:
 - [x] Inline component template fixture coverage.
 - [x] Basic formatting preservation in Angular templates.
 - [x] Complex Angular expression no-op boundaries.
+- [x] Real-smoke fixture coverage.
+- [x] Folder dry-run real-smoke integration coverage through the default frontend glob.
+- [ ] Manual sandbox smoke pass before promotion to Supported.
 
 ### Blade / PHP
 
@@ -185,7 +188,18 @@ Investigate:
 - [x] Mixed PHP/HTML fixture coverage.
 - [x] HTML comment, block comment, Blade comment, `@verbatim`, and PHP heredoc/nowdoc no-op behavior.
 - [x] File-level apply coverage.
+- [x] Real-smoke fixture coverage.
+- [x] Folder dry-run real-smoke integration coverage through the default frontend glob.
+- [ ] Manual sandbox smoke pass before promotion to Supported.
 - [ ] Dedicated PHP arrays only if a safe parser-backed path is added.
+
+### Angular / Blade Support Contract
+
+Angular and Blade/PHP remain Partial in 0.4.4 while the promotion track is validated. The intended Supported contract for 0.4.5 is conservative: Trier sorts documented static classes, simple class bindings, Blade component attributes, and Blade `@class(...)` quoted fragments, while preserving documented no-op boundaries instead of attempting risky rewrites.
+
+Angular no-op boundaries include `[class.foo]`, `[attr.class]`, method calls, custom pipes, complex expressions, interpolation, and malformed bindings. Blade/PHP no-op boundaries include escaped `@@class(...)`, escaped component `::class`, `$attributes->class(...)`, `$attributes->merge(...)`, generic PHP arrays, interpolation, comments, `@verbatim`, heredoc/nowdoc strings, and malformed directives.
+
+Promotion to Supported requires the 0.4.4 real-smoke fixtures, folder dry-run integration coverage, and manual sandbox smoke to agree with this contract.
 
 ## Near-Term Milestones
 
@@ -228,7 +242,7 @@ Manual smoke checklist completed before promotion:
 - [x] Add Angular and Blade/PHP no-op boundary fixtures for complex expressions, escaped component attributes, comment ranges, and `$attributes` helpers.
 - Keep Angular and Blade/PHP support fallback-only in 0.4.x; do not add Angular/PHP/Blade PSI dependencies until demand justifies the compatibility and verifier cost.
 - Use 0.4.3 for fallback hardening, no-op coverage, and verifier/build stability.
-- Use 0.4.4 for Angular and Blade/PHP real-smoke fixtures, sandbox smoke scenarios, and final support-contract wording.
+- Use 0.4.4 for Angular and Blade/PHP real-smoke fixtures, sandbox smoke scenarios, final support-contract wording, and Blade fallback-after-PSI hardening.
 - Promote Angular and Blade/PHP to Supported in 0.4.5 only after real-smoke and manual sandbox verification confirm the documented no-op boundaries.
 - Add project-level reports for unsupported files and skipped candidates.
 

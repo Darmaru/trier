@@ -2,6 +2,18 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.4.4] - 2026-06-22
+
+### Changed
+
+- Hardened fallback-after-PSI detection so Blade fallback only runs for real unescaped `@class(...)` directives.
+
+### Added
+
+- Added Angular and Blade/PHP real-smoke fixture coverage for the 0.4.x promotion track.
+- Added folder dry-run integration coverage for Angular and Blade/PHP real-smoke fixtures through the default frontend glob.
+- Documented the conservative Angular and Blade/PHP support contract ahead of the 0.4.5 promotion target.
+
 ## [0.4.3] - 2026-06-14
 
 ### Added

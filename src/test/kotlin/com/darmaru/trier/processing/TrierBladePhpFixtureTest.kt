@@ -23,6 +23,7 @@ class TrierBladePhpFixtureTest {
             "component-attributes",
             "class-directive",
             "mixed-template",
+            "real-smoke",
         ).forEach(::assertBladeFixture)
     }
 

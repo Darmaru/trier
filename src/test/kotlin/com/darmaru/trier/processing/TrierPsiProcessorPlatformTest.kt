@@ -58,6 +58,109 @@ class TrierPsiProcessorPlatformTest : BasePlatformTestCase() {
         )
     }
 
+    fun testRunsBladeFallbackForRealClassDirectiveInPsiBackedFile() {
+        val text =
+            """
+            <div
+                class="text-center p-4 flex bg-red-500 font-bold"
+                @class([
+                    'text-center p-4 flex bg-red-500 font-bold' => active,
+                ])
+            ></div>
+            """.trimIndent()
+        val file = myFixture.configureByText("component.html", text)
+        var fallbackSortCalls = 0
+
+        val result =
+            TrierPsiProcessor(
+                sortStrings = { values -> values.map(::sortClassesStub) },
+                fallbackTextProcessor =
+                    TrierTextProcessor { values ->
+                        fallbackSortCalls++
+                        values.map(::sortClassesStub)
+                    },
+            ).process(file, text, settings)
+
+        assertEquals(
+            """
+            <div
+                class="flex bg-red-500 p-4 text-center font-bold"
+                @class([
+                    'flex bg-red-500 p-4 text-center font-bold' => active,
+                ])
+            ></div>
+            """.trimIndent(),
+            result,
+        )
+        assertEquals(1, fallbackSortCalls)
+    }
+
+    fun testDoesNotRunBladeFallbackForEscapedClassDirectiveInPsiBackedFile() {
+        val text =
+            """
+            <div
+                class="text-center p-4 flex bg-red-500 font-bold"
+                @@class([
+                    'text-center p-4 flex bg-red-500 font-bold' => active,
+                ])
+            ></div>
+            """.trimIndent()
+        val file = myFixture.configureByText("component.html", text)
+        var fallbackSortCalls = 0
+
+        val result =
+            TrierPsiProcessor(
+                sortStrings = { values -> values.map(::sortClassesStub) },
+                fallbackTextProcessor =
+                    TrierTextProcessor { values ->
+                        fallbackSortCalls++
+                        values.map(::sortClassesStub)
+                    },
+            ).process(file, text, settings)
+
+        assertEquals(
+            """
+            <div
+                class="flex bg-red-500 p-4 text-center font-bold"
+                @@class([
+                    'text-center p-4 flex bg-red-500 font-bold' => active,
+                ])
+            ></div>
+            """.trimIndent(),
+            result,
+        )
+        assertEquals(0, fallbackSortCalls)
+    }
+
+    fun testDoesNotRunBladeFallbackForCommentedClassDirectiveInPsiBackedFile() {
+        val text =
+            """
+            <div class="text-center p-4 flex bg-red-500 font-bold"></div>
+            <!-- @class(['text-center p-4 flex bg-red-500 font-bold' => active]) -->
+            """.trimIndent()
+        val file = myFixture.configureByText("component.html", text)
+        var fallbackSortCalls = 0
+
+        val result =
+            TrierPsiProcessor(
+                sortStrings = { values -> values.map(::sortClassesStub) },
+                fallbackTextProcessor =
+                    TrierTextProcessor { values ->
+                        fallbackSortCalls++
+                        values.map(::sortClassesStub)
+                    },
+            ).process(file, text, settings)
+
+        assertEquals(
+            """
+            <div class="flex bg-red-500 p-4 text-center font-bold"></div>
+            <!-- @class(['text-center p-4 flex bg-red-500 font-bold' => active]) -->
+            """.trimIndent(),
+            result,
+        )
+        assertEquals(0, fallbackSortCalls)
+    }
+
     fun testProcessesCssApplyThroughRealPsi() {
         val text = """.button { @apply flex bg-red-500 p-4 text-center font-bold; }"""
         val file = myFixture.configureByText("test.css", text)

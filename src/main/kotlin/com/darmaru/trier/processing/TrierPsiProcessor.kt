@@ -125,7 +125,7 @@ class TrierPsiProcessor(
         }
     }
 
-    private fun hasFallbackOnlySyntax(text: String): Boolean = text.contains("@class")
+    private fun hasFallbackOnlySyntax(text: String): Boolean = containsBladeClassDirective(text)
 
     private fun collectXmlAttributeCandidates(
         attribute: XmlAttribute,

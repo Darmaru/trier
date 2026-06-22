@@ -616,6 +616,46 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
         )
     }
 
+    fun testSortFolderDryRunReportsAngularAndBladeRealSmokeChangesThroughDefaultFrontendGlob() {
+        val root = createTempDirectory("trier-folder-template-framework-real-smoke-dry-run-test")
+        val angularFile = root / "src/app/real-smoke.component.html"
+        val bladeFile = root / "resources/views/real-smoke.blade.php"
+        angularFile.parent.createDirectories()
+        bladeFile.parent.createDirectories()
+        val angularOriginal = fixtureText("fixtures/processing/angular/real-smoke/input.html")
+        val angularExpected = fixtureText("fixtures/processing/angular/real-smoke/expected.html")
+        val bladeOriginal = fixtureText("fixtures/processing/blade/real-smoke/input.blade.php")
+        val bladeExpected = fixtureText("fixtures/processing/blade/real-smoke/expected.blade.php")
+        angularFile.writeText(angularOriginal)
+        bladeFile.writeText(bladeOriginal)
+
+        val report =
+            TrierSortService
+                .getInstance()
+                .sortFolder(
+                    project,
+                    root.toString(),
+                    "**/*.{html,js,jsx,ts,tsx,vue,astro,svelte,css,scss,php}",
+                    dryRun = true,
+                )
+
+        assertEquals(angularOriginal, angularFile.readText())
+        assertEquals(bladeOriginal, bladeFile.readText())
+        assertEquals(2, report.scanned)
+        assertEquals(2, report.matched)
+        assertEquals(2, report.changed)
+        assertEquals(0, report.updated)
+        assertEquals(0, report.failed)
+        assertEquals(
+            angularExpected,
+            report.changes.single { it.relativePath == "src/app/real-smoke.component.html" }.sortedText,
+        )
+        assertEquals(
+            bladeExpected,
+            report.changes.single { it.relativePath == "resources/views/real-smoke.blade.php" }.sortedText,
+        )
+    }
+
     fun testSortFolderReportsInvalidGlobPattern() {
         val root = createTempDirectory("trier-folder-invalid-glob-test")
         val report = TrierSortService.getInstance().sortFolder(project, root.toString(), "[", dryRun = true)
@@ -1095,4 +1135,10 @@ class TrierPluginIntegrationTest : BasePlatformTestCase() {
                 if (idx >= 0) idx else order.size + token.hashCode()
             }.joinToString(" ")
     }
+
+    private fun fixtureText(path: String): String =
+        javaClass.classLoader
+            .getResource(path)
+            ?.readText()
+            ?: error("Missing test fixture: $path")
 }

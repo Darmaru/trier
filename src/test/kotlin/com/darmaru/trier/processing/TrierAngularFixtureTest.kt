@@ -26,6 +26,7 @@ class TrierAngularFixtureTest {
             "ngclass-expression" to "html",
             "ngclass-array-object" to "html",
             "ngclass-formatting" to "html",
+            "real-smoke" to "html",
         ).forEach { (name, extension) -> assertAngularFixture(name, extension) }
     }
 

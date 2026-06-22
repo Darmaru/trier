@@ -174,16 +174,13 @@ intellijPlatform {
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Fallback no-op hardening and verifier workflow.</strong></p>
+            <p><strong>Angular and Blade/PHP promotion prep.</strong></p>
             <ul>
-                <li>Keeps HTML comments and block comments unchanged in fallback-processed templates and styles.</li>
-                <li>Adds fixture coverage for sorting supported sibling candidates around ignored comment ranges.</li>
-                <li>Sorts Blade <code>@class(...)</code> directives in files that also contain PSI-backed <code>class="..."</code> attributes.</li>
-                <li>Adds nested CSS at-rule fixture coverage for <code>@apply</code> sorting.</li>
-                <li>Adds Angular complex expression no-op fixture coverage.</li>
-                <li>Adds Blade escaped component attribute and <code>${'$'}attributes-&gt;class(...)</code> / <code>${'$'}attributes-&gt;merge(...)</code> no-op fixture coverage.</li>
-                <li>Adds a local <code>verifyPluginRecommended</code> Gradle task for JetBrains recommended IDE compatibility checks.</li>
-                <li>Raises Gradle daemon JVM memory settings for IntelliJ Platform test and verifier runs.</li>
+                <li>Adds Angular real-smoke fixture coverage that combines supported bindings and documented no-op boundaries.</li>
+                <li>Adds Blade/PHP real-smoke fixture coverage that combines static classes, <code>@class(...)</code>, comments, heredoc, and no-op PHP helpers.</li>
+                <li>Adds folder dry-run integration coverage for Angular and Blade/PHP real-smoke fixtures through the default frontend glob.</li>
+                <li>Hardens fallback-after-PSI detection so Blade fallback only runs for real unescaped <code>@class(...)</code> directives.</li>
+                <li>Documents the conservative Angular and Blade/PHP support contract ahead of the 0.4.5 promotion target.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

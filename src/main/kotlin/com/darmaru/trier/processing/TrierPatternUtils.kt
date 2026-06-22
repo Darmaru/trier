@@ -21,6 +21,34 @@ internal fun shouldSkipClassAttributeValue(
 
 internal fun containsStaticAttributeInterpolation(value: String): Boolean = value.contains("{{") || value.contains("$")
 
+internal fun containsBladeClassDirective(text: String): Boolean {
+    var index = 0
+    while (index < text.length) {
+        findBladeClassDirectiveIgnoredRangeEndAt(text, index)?.let { ignoredRangeEnd ->
+            index = ignoredRangeEnd
+            continue
+        }
+        if (!text.startsWith(BLADE_CLASS_DIRECTIVE, index)) {
+            index++
+            continue
+        }
+        if (index > 0 && text[index - 1] == '@') {
+            index += BLADE_CLASS_DIRECTIVE.length
+            continue
+        }
+
+        var cursor = index + BLADE_CLASS_DIRECTIVE.length
+        while (cursor < text.length && text[cursor].isWhitespace()) {
+            cursor++
+        }
+        if (cursor < text.length && text[cursor] == '(') {
+            return true
+        }
+        index = cursor + 1
+    }
+    return false
+}
+
 internal fun containsUnquotedPipe(value: String): Boolean {
     var index = 0
     while (index < value.length) {
@@ -54,6 +82,30 @@ private fun isAngularClassBindingName(name: String): Boolean = name == "[class]"
 
 private fun containsComplexAngularExpression(value: String): Boolean =
     containsUnquotedPipe(value) || containsUnquotedCall(value)
+
+private const val BLADE_CLASS_DIRECTIVE = "@class"
+
+private val BLADE_CLASS_DIRECTIVE_IGNORED_DELIMITERS =
+    listOf(
+        "<!--" to "-->",
+        "/*" to "*/",
+        "{{--" to "--}}",
+        "@verbatim" to "@endverbatim",
+    )
+
+private fun findBladeClassDirectiveIgnoredRangeEndAt(
+    text: String,
+    index: Int,
+): Int? {
+    BLADE_CLASS_DIRECTIVE_IGNORED_DELIMITERS.forEach { (startToken, endToken) ->
+        if (!text.startsWith(startToken, index)) {
+            return@forEach
+        }
+        val end = text.indexOf(endToken, index + startToken.length)
+        return if (end < 0) text.length else end + endToken.length
+    }
+    return null
+}
 
 fun buildFunctionPredicates(customValues: List<String>): List<(String) -> Boolean> =
     customValues.distinct().map(::toNamePredicate)
