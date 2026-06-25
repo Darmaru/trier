@@ -2,6 +2,7 @@ package com.darmaru.trier.processing
 
 import com.intellij.openapi.util.TextRange
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -179,6 +180,17 @@ class TrierTextProcessorTest {
         assertEquals(true, TrierPsiProcessor.isReplacementAllowed(Replacement(12, 18, "x"), limit))
         assertEquals(false, TrierPsiProcessor.isReplacementAllowed(Replacement(5, 18, "x"), limit))
         assertEquals(false, TrierPsiProcessor.isReplacementAllowed(Replacement(12, 35, "x"), limit))
+    }
+
+    @Test
+    fun `detects real blade class directives only`() {
+        assertTrue(containsBladeClassDirective("<div @class(['font-bold flex p-4' => active])></div>"))
+        assertTrue(containsBladeClassDirective("<div @class (['font-bold flex p-4' => active])></div>"))
+        assertFalse(containsBladeClassDirective("<div @@class(['font-bold flex p-4' => active])></div>"))
+        assertFalse(containsBladeClassDirective("<!-- @class(['font-bold flex p-4' => active]) -->"))
+        assertFalse(containsBladeClassDirective("{{-- @class(['font-bold flex p-4' => active]) --}}"))
+        assertFalse(containsBladeClassDirective("@verbatim @class(['font-bold flex p-4' => active]) @endverbatim"))
+        assertFalse(containsBladeClassDirective("<div @class></div>"))
     }
 
     private fun processor(): TrierTextProcessor =

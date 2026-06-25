@@ -38,7 +38,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
             ),
         )
 
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
         configurable.reset()
 
@@ -56,7 +56,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     }
 
     fun testApplyPersistsModifiedValues() {
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
         val view = configurable.testView()
         val tempDir = createTempDirectory("trier-settings-test")
@@ -92,7 +92,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     }
 
     fun testApplyRejectsMissingTailwindStylesheetPath() {
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
         val view = configurable.testView()
         view.tailwindStylesheetField.text = "/definitely/missing/trier.css"
@@ -116,7 +116,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     }
 
     fun testApplyRejectsDirectoryAsTailwindConfigPath() {
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
         val view = configurable.testView()
         val tempDir = createTempDirectory("trier-settings-dir-test")
@@ -136,7 +136,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     }
 
     fun testApplyRejectsInvalidCustomAttributeRegex() {
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
         val view = configurable.testView()
         view.tailwindAttributesArea.text = "/[/"
@@ -153,7 +153,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     }
 
     fun testApplyRejectsInvalidCustomFunctionRegex() {
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
         val view = configurable.testView()
         view.tailwindFunctionsArea.text = "cn, /(/"
@@ -170,7 +170,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     }
 
     fun testRuntimeProbeUsesCurrentFormValues() {
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
         val view = configurable.testView()
         val tempDir = createTempDirectory("trier-settings-runtime-test")
@@ -241,7 +241,7 @@ class TrierSettingsConfigurableTest : BasePlatformTestCase() {
     }
 
     fun testFileChooserFallsBackToProjectRootWhenPathIsBlank() {
-        val configurable = TrierSettingsConfigurable()
+        val configurable = TrierSettingsConfigurable(project)
         configurable.createComponent()
 
         val selected = configurable.fileChooserInitialSelectionForTest("")

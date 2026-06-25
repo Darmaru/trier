@@ -2,6 +2,18 @@
 
 All notable changes to Trier are documented in this file.
 
+## [0.4.5] - 2026-06-25
+
+### Changed
+
+- Promoted Angular and Laravel Blade / PHP support to Supported with a conservative fallback-backed support contract.
+- Updated framework documentation and plugin metadata to reflect the validated Angular and Blade/PHP support boundaries.
+- Reworked the README and Marketplace description into a product-focused overview and simplified the framework support document into the current support contract.
+
+### Fixed
+
+- Made Trier settings project-aware so runtime tests and Tailwind stylesheet/config auto-detection use the project whose settings are opened instead of the first project opened in the IDE window.
+
 ## [0.4.4] - 2026-06-22
 
 ### Changed

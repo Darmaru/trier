@@ -18,7 +18,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
@@ -52,11 +51,10 @@ internal var testNodeRuntimeValidator: (() -> String)? = null
 @Volatile
 internal var testRuntimeProbe: ((com.darmaru.trier.processing.TrierResolvedSettings) -> TrierRuntimeReport)? = null
 
-class TrierSettingsConfigurable : Configurable {
+class TrierSettingsConfigurable(
+    private val project: Project,
+) : Configurable {
     private val state get() = TrierSettingsState.getInstance()
-    private val project: Project by lazy {
-        ProjectManager.getInstance().openProjects.firstOrNull() ?: ProjectManager.getInstance().defaultProject
-    }
 
     private var panel: JPanel? = null
     private var nodeInterpreterField: NodeJsInterpreterField? = null

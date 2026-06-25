@@ -113,74 +113,45 @@ intellijPlatform {
         description =
             """
             <p>
-                Trier sorts Tailwind CSS classes in JetBrains IDEs without handing the whole file to Prettier.
-                It uses the official Tailwind Labs sorter from <code>prettier-plugin-tailwindcss</code>, preserves
-                surrounding code style, and fits into normal IDE workflows for editor work, save hooks, reformat hooks,
-                Project View actions, folder scans, dry-run reviews, diffs, and selective apply.
+                Trier keeps Tailwind CSS classes in a consistent order directly inside JetBrains IDEs. It uses the
+                official Tailwind Labs sorter, preserves your existing formatting, and gives you safe editor, Project
+                View, folder, dry-run, diff, and selective apply workflows without handing whole files to Prettier.
             </p>
             <p><strong>Why Trier</strong></p>
             <ul>
-                <li>Focused Tailwind class sorting without changing indentation, quotes, wrapping, semicolons, or
-                unrelated code style.</li>
-                <li>Official Tailwind class order from <code>prettier-plugin-tailwindcss/sorter</code>.</li>
-                <li>Bundled Node-side sorting runtime, so your project does not need local <code>prettier</code>
-                dependencies.</li>
-                <li>IDE-native workflow for manual sorting, selected ranges, save hooks, reformat hooks, files, and
-                folders.</li>
-                <li>Safe bulk cleanup with dry-run reports, grouped changed-file review, JetBrains diffs, and apply-all
-                or apply-selected actions.</li>
+                <li>Sort Tailwind class lists without changing indentation, quotes, semicolons, wrapping, or unrelated code style.</li>
+                <li>Use the official Tailwind ordering from <code>prettier-plugin-tailwindcss</code>.</li>
+                <li>Review folder-wide changes before writing files with dry-run reports and JetBrains diffs.</li>
+                <li>Apply one file, selected files, selected directories, or all remaining dry-run changes.</li>
+                <li>Run manually, from Project View, on Save, or after the IDE Reformat Code action.</li>
             </ul>
-            <p><strong>Core features</strong></p>
+            <p><strong>Framework coverage</strong></p>
             <ul>
-                <li>Sort the current editor, a selected plain class list, or class candidates inside the selected
-                range.</li>
-                <li>Run automatically on Save or after the IDE's Reformat Code action.</li>
-                <li>Preview selected files and folders from the Project View context menu before writing changes.</li>
-                <li>Scan folders with configurable glob patterns in a cancellable background task.</li>
-                <li>Review bulk changes with grouped or flat dry-run views, selected diffs, copied reports, and
-                selective apply.</li>
+                <li>HTML, XML, JSX, TSX, CSS, and SCSS.</li>
+                <li>Vue, Svelte, Astro, Angular, and Laravel Blade / PHP.</li>
+                <li>Static classes, dynamic class bindings, helper calls, component class props, and <code>@apply</code>.</li>
+                <li>Custom attributes and helper functions such as <code>data-classes</code>, <code>cn</code>, <code>clsx</code>, or <code>tw</code>.</li>
             </ul>
-            <p><strong>Supported patterns</strong></p>
+            <p><strong>Safe by default</strong></p>
             <ul>
-                <li>HTML/XML <code>class</code> attributes and JSX/TSX <code>className</code>.</li>
-                <li>JSX/TSX string literals, template literals, ternaries, arrays, and object keys containing class
-                fragments.</li>
-                <li>Vue SFC template classes, dynamic <code>:class</code> bindings,
-                <code>&lt;script setup&gt;</code> helper calls, and <code>&lt;style&gt;</code>
-                <code>@apply</code>.</li>
-                <li>Conservative fallback-backed support for Svelte and Astro static classes, braced class
-                expressions, Svelte array/object class values, Astro <code>class:list</code>, nested configured
-                helper calls, static template literal helpers, and style <code>@apply</code>.</li>
-                <li>Partial fallback coverage for Angular <code>ngClass</code> / <code>[ngClass]</code> and
-                Laravel Blade / PHP static classes, component attributes, and <code>@class(...)</code>.</li>
-                <li>CSS/SCSS <code>@apply</code>.</li>
-                <li>Custom attributes and custom class helper functions such as <code>cn</code>, <code>clsx</code>,
-                or tagged template helpers when configured.</li>
-            </ul>
-            <p><strong>Configuration</strong></p>
-            <ul>
-                <li>Uses the IDE JavaScript Runtime selector for Node.js.</li>
-                <li>Supports local and Docker/remote Node.js runtimes through the IDE JavaScript Runtime selector.</li>
-                <li>Auto-detects Tailwind config and stylesheet paths when settings fields are left blank, while still
-                allowing explicit overrides.</li>
-                <li>Supports preserve whitespace, preserve duplicates, custom attributes, and custom functions.</li>
-                <li>Includes a runtime test button that reports the actual Node.js version and validates bundled runtime
-                extraction, helper startup, and a real sample sort.</li>
+                <li>Unsupported or ambiguous framework syntax is preserved as no-op instead of being rewritten aggressively.</li>
+                <li>Manual Tailwind stylesheet/config paths always win, while blank settings are auto-detected per project.</li>
+                <li>The bundled sorter runtime means your project does not need local <code>prettier</code> dependencies.</li>
             </ul>
             <p>
-                Trier is designed for teams that want reliable Tailwind ordering across HTML, JSX, TSX, Vue, CSS,
-                Svelte, Astro, and related frontend files without giving up their existing IDE formatting workflow.
+                Trier is designed for projects where Tailwind class lists live everywhere: templates, components,
+                helper calls, style blocks, backend views, and framework-specific bindings.
             </p>
             """.trimIndent()
         changeNotes =
             """
-            <p><strong>Angular and Blade/PHP promotion prep.</strong></p>
+            <p><strong>Angular and Blade/PHP support promotion.</strong></p>
             <ul>
-                <li>Adds Angular real-smoke fixture coverage that combines supported bindings and documented no-op boundaries.</li>
-                <li>Adds Blade/PHP real-smoke fixture coverage that combines static classes, <code>@class(...)</code>, comments, heredoc, and no-op PHP helpers.</li>
-                <li>Adds folder dry-run integration coverage for Angular and Blade/PHP real-smoke fixtures through the default frontend glob.</li>
-                <li>Hardens fallback-after-PSI detection so Blade fallback only runs for real unescaped <code>@class(...)</code> directives.</li>
-                <li>Documents the conservative Angular and Blade/PHP support contract ahead of the 0.4.5 promotion target.</li>
+                <li>Promotes Angular support to Supported for static classes, <code>ngClass</code>, <code>[class]</code>, <code>[ngClass]</code>, and inline component templates.</li>
+                <li>Promotes Laravel Blade / PHP support to Supported for static classes, Blade component attributes, and Blade <code>@class(...)</code> quoted fragments.</li>
+                <li>Keeps documented unsupported Angular and Blade/PHP syntax as no-op instead of attempting risky rewrites.</li>
+                <li>Makes Trier settings project-aware so runtime tests and Tailwind path auto-detection use the active project context in multi-project IDE windows.</li>
+                <li>Refreshes the Marketplace, README, and framework support documentation around Trier's current supported workflows.</li>
             </ul>
             """.trimIndent()
         ideaVersion {

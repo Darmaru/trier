@@ -7,7 +7,7 @@
 <h1 align="center">Trier</h1>
 
 <p align="center">
-  Tailwind CSS class sorting for JetBrains IDEs, powered by the official Tailwind Labs sorter.
+  Tailwind CSS class sorting for JetBrains IDEs.
 </p>
 
 <p align="center">
@@ -20,176 +20,62 @@
 </p>
 
 <!-- Plugin description -->
-Trier is a JetBrains IDE plugin for sorting Tailwind CSS classes without handing the whole file to Prettier. It uses the official Tailwind Labs sorter from `prettier-plugin-tailwindcss`, preserves surrounding code style, and gives you IDE-native workflows for editor sorting, save and reformat hooks, Project View actions, folder scans, dry-run reviews, diffs, and selective apply.
+Trier keeps Tailwind CSS classes in a consistent order directly inside JetBrains IDEs. It uses the official Tailwind Labs sorter, preserves your existing formatting, and gives you safe editor, Project View, folder, dry-run, diff, and selective apply workflows without handing whole files to Prettier.
 <!-- Plugin description end -->
 
-Trier is built for teams that want consistent Tailwind ordering without broad formatting churn. It sorts class lists, `@apply` rules, JSX/TSX expressions, Vue bindings, Svelte/Astro fallback patterns, and configured class helper functions while keeping the surrounding framework syntax and formatting intact.
+Trier is for projects where Tailwind class lists live everywhere: templates, components, helper calls, style blocks, backend views, and framework-specific bindings. It focuses on one job: sort class lists reliably while leaving the rest of your code alone.
 
 ## Why Trier
 
-- **Focused formatting**: sort Tailwind classes without changing indentation, quotes, semicolons, wrapping, or unrelated code style.
-- **Official Tailwind ordering**: class order comes from `prettier-plugin-tailwindcss/sorter`.
-- **No project dependency required**: Trier bundles `prettier` and `prettier-plugin-tailwindcss` for its own runtime.
-- **Project-aware Tailwind options**: detects Tailwind config and stylesheet files when the settings fields are left blank.
-- **IDE-native workflow**: run from the editor, selection, save, reformat, Project View actions, or folder actions.
-- **Safe bulk cleanup**: scan folders with glob patterns, preview every change, and apply all or selected dry-run results from the review dialog.
-- **Framework-aware processing**: uses PSI when available and falls back to text processing where needed.
+- **Focused class sorting**: no broad formatting churn, no quote changes, no semicolon changes, no unrelated rewrites.
+- **Official Tailwind order**: class ordering comes from Tailwind Labs' `prettier-plugin-tailwindcss` sorter.
+- **IDE-native review flow**: run from the editor, Project View, save, reformat, or folder scan.
+- **Safe bulk cleanup**: preview changed files in a dry-run tree, inspect diffs, then apply selected files or everything.
+- **Framework coverage**: HTML, JSX, TSX, Vue, Svelte, Astro, Angular, Blade/PHP, CSS, and SCSS.
+- **Project-aware settings**: runtime checks and Tailwind path detection use the project whose settings are open.
 
-## Core Features
+## What It Sorts
 
-### Editor Sorting
+Trier handles common Tailwind class locations:
 
-- Sort the current editor from `Tools | Sort Tailwind Classes`.
-- Sort from the editor context menu.
-- Sort only the selected plain class list.
-- Sort only class candidates fully contained in the current selection.
-- Keep unrelated parts of the file unchanged.
-
-### Automation
-
-- Sort on Save.
-- Sort after the IDE `Reformat Code` action.
-- Respect the active editor selection when reformat sorting is triggered.
-- Guard against recursive sorting while a document is already being processed.
-
-### Project View Actions
-
-- Preview sorting for a selected file or folder from the Project View context menu.
-- Review changed files before anything is written.
-- Sort any folder from `Tools | Sort Tailwind Classes in Folder`.
-- Use configurable glob patterns for folder scans.
-- Run folder sorting in a cancellable background task.
-
-### Dry Runs and Diffs
-
-Folder sorting supports `Dry run`, which scans and reports changes before writing files.
-
-- See scanned, matched, changed, unchanged, skipped, failed, and cancelled counts.
-- Inspect a single changed file directly in the JetBrains diff viewer.
-- Review multiple changed files in a grouped tree or flat list.
-- Select one file, several files, or a directory of changed files.
-- Open diffs for the selected files.
-- Apply every remaining change with `Apply`.
-- Apply only the selected files or directories with `Apply Selected`.
-- Apply an individual change from the diff viewer.
-- Copy the dry-run report.
-- Applied files are removed from the review list and from the copied report.
-
-## Supported Code Patterns
-
-Trier handles the common places where Tailwind class lists appear:
-
-- HTML/XML `class="..."`
-- JSX/TSX `className="..."`
-- JSX/TSX `className={"..."}`
-- JSX/TSX ternaries, arrays, and object keys containing quoted class fragments
-- Vue `<template>` static `class`
-- Vue dynamic `:class` quoted fragments
-- Vue `<script setup>` custom class helper calls
-- Svelte static classes, `class={...}` arrays/object keys, component class props, nested helper calls, static template literal helpers, and `<style>` `@apply`
-- Astro static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, nested frontmatter helper calls, static template literal helpers, and `<style>` `@apply`
-- Angular static classes, `ngClass`, `[class]`, and `[ngClass]` quoted fragments in ternaries, arrays, object keys, and inline component templates
-- Laravel Blade / PHP static classes, Blade component attributes, and Blade `@class(...)` quoted fragments
+- HTML/XML `class`
+- JSX/TSX `className`, string expressions, ternaries, arrays, object keys, and configured helper calls
+- Vue template bindings, `<script setup>` helper calls, and `<style>` `@apply`
+- Svelte classes, component props, helper calls, and style blocks
+- Astro `class`, `className`, `class:list`, frontmatter helpers, and style blocks
+- Angular `class`, `ngClass`, `[class]`, `[ngClass]`, and inline component templates
+- Laravel Blade / PHP static classes, Blade component attributes, and Blade `@class(...)`
 - CSS/SCSS `@apply`
-- Vue `<style>` `@apply`
-- Custom attributes such as `data-classes`
-- Custom functions such as `cn("...")`, `clsx({ "...": active })`, or configured tagged templates such as `tw`
+- Custom attributes and helper functions such as `data-classes`, `cn`, `clsx`, or `tw`
 
-Default attribute targets:
+Unsupported or ambiguous framework syntax is preserved as no-op instead of being rewritten aggressively. See [Framework Support](docs/framework-support.md) for the current support contract.
 
-```text
-class
-className
-:class
-v-bind:class
-ngClass
-[ngClass]
-[class]
-class:list
-```
+## Safe Dry Runs
 
-Custom attributes and functions can be exact names or regex patterns wrapped in `/.../`.
+Folder and Project View sorting can run as a dry run before anything is written.
 
-Examples:
+You can:
 
-```text
-data-classes
-/data-.+/
-cn
-clsx
-tw
-```
+- scan a file, folder, or project subtree;
+- review changed files as a tree or flat list;
+- open all diffs from one review window;
+- apply selected files or selected directories;
+- apply one file directly from the diff window;
+- copy the dry-run report;
+- keep stale, failed, skipped, or cancelled files visible in the report.
 
-## Folder Sorting
+Applied files are removed from the review list, so large cleanups can be handled in batches.
 
-The folder dialog starts with this broad frontend glob:
+## Quick Start
 
-```text
-**/*.{html,js,jsx,ts,tsx,vue,astro,svelte,css,scss,php}
-```
+1. Install Trier from the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/31703-trier).
+2. Open `Settings | Tools | Trier`.
+3. Choose a Node.js runtime or use the IDE JavaScript Runtime selector.
+4. Leave Tailwind `Stylesheet` and `Config` blank for auto-detection, or set them explicitly.
+5. Run `Test Trier runtime`.
+6. Use `Sort Tailwind Classes` from the editor, Project View, save/reformat hooks, or folder action.
 
-You can narrow it for a safer pass:
-
-```text
-**/*.{html,jsx,tsx,vue,css,scss}
-```
-
-Recommended workflow for large projects:
-
-1. Run `Sort Tailwind Classes in Folder`.
-2. Enable `Dry run`.
-3. Review the grouped file tree and selected diffs.
-4. Apply selected directories or files in batches.
-5. Use `Apply` when the remaining preview looks correct.
-
-## Settings
-
-Open `Settings | Tools | Trier`.
-
-### Runtime
-
-- `Node interpreter`: uses the IDE JavaScript Runtime selector, including local and Docker/remote runtimes supported by the IDE.
-- `Test Trier runtime`: validates Node.js resolution, reports the actual Node.js version, checks bundled runtime extraction and helper startup, and runs a real sample sort.
-
-### Triggers
-
-- `Sort on Save`
-- `Sort on Code Reformat`
-
-### Tailwind CSS
-
-- `Stylesheet`: passed to the Tailwind sorter as `tailwindStylesheet`; leave blank to auto-detect a Tailwind stylesheet such as `src/app.css` or `app/globals.css`.
-- `Config`: passed as `tailwindConfig`; leave blank to auto-detect `tailwind.config.js`, `.cjs`, `.mjs`, `.ts`, `.cts`, or `.mts`.
-- `Preserve whitespace`: passed as `tailwindPreserveWhitespace`.
-- `Preserve duplicates`: passed as `tailwindPreserveDuplicates`.
-- `Attributes`: additional `tailwindAttributes`, one per line or comma-separated.
-- `Functions`: `tailwindFunctions`, one per line or comma-separated. Add helpers such as `cn`, `clsx`, or `twMerge` here before Trier sorts their string arguments.
-
-Manual stylesheet and config paths always take precedence over auto-detected paths. The stylesheet detector looks for common Tailwind entrypoint names and CSS files containing Tailwind markers such as `@import "tailwindcss"`, `@import "tailwindcss/utilities.css"`, `@plugin "@tailwindcss/typography"`, `@tailwind utilities`, or `@config`, while skipping common vendor, build, and cache directories.
-
-The stylesheet and config file choosers open in the project root when no valid path is already selected.
-
-## Runtime Notes
-
-Trier bundles the Node-side sorter dependencies used by the plugin. Your project does not need to install `prettier` or `prettier-plugin-tailwindcss`.
-
-Node.js is still required because the Tailwind sorter runs in Node.js. The bundled Tailwind sorter currently requires Node.js `20.19` or newer. Trier supports local and Docker/remote Node.js runtimes configured through the IDE JavaScript Runtime selector. For Docker/remote runtimes, Node.js `22` is recommended.
-
-## Framework Coverage
-
-Trier has PSI-backed processing and tests for HTML, XML-style attributes, JSX, TSX, CSS, SCSS `@apply` including nested at-rules, and Vue single-file components. Svelte and Astro are supported through the conservative fallback processor, dedicated fixtures, and manual smoke coverage.
-
-Vue support is enabled through the optional bundled dependency `org.jetbrains.plugins.vue`.
-
-Vue is covered by dedicated fixtures for static template classes, dynamic `:class` / `v-bind:class` bindings, nested arrays/objects, `<script setup>` helpers, `<style>` `@apply`, formatting preservation, and malformed no-op cases.
-
-Svelte support includes static classes, `class={...}` quoted fragments, arrays/object keys, component class props, configured helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for `class:` directives and interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
-
-Astro support includes static classes, `class={...}` / `className={...}`, `class:list` arrays/object keys, component class attributes, configured frontmatter helper calls with nested args and static template literals, `<style>` `@apply`, and no-op coverage for interpolated template literals. Helper calls require adding helpers such as `cn` to Trier's `Functions` setting.
-
-Angular and Laravel Blade / PHP have partial fallback support with real-smoke fixtures. Angular coverage includes static `class`, `ngClass`, and quoted fragments inside `[class]` / `[ngClass]` expressions and inline component templates; `[class.foo]`, `[attr.class]`, method calls, pipes, complex expressions, interpolation, and malformed bindings stay no-op. Blade/PHP coverage includes static classes, Blade component attributes, and quoted fragments inside Blade `@class(...)`; escaped component `::class`, `$attributes->class(...)` / `$attributes->merge(...)`, HTML comments, block comments, Blade comments, `@verbatim` blocks, PHP heredoc/nowdoc strings, generic PHP arrays, malformed directives, and interpolated Blade/PHP strings stay no-op.
-
-See [Framework Support Roadmap](docs/framework-support.md) for the working support matrix and planned stabilization steps.
+Node.js `20.19` or newer is required because the Tailwind sorter runs in Node.js. Trier bundles the Node-side sorter dependencies, so your project does not need to install `prettier` or `prettier-plugin-tailwindcss`.
 
 ## Examples
 
@@ -249,6 +135,32 @@ becomes:
 }
 ```
 
+## Settings
+
+Trier lives in `Settings | Tools | Trier`.
+
+- `Node interpreter`: local or Docker/remote Node.js runtime from the IDE JavaScript Runtime selector.
+- `Test Trier runtime`: validates the selected runtime, bundled helper startup, Tailwind path detection, and a real sample sort.
+- `Sort on Save`: sorts supported class candidates when files are saved.
+- `Sort on Code Reformat`: runs after the IDE reformat action.
+- `Stylesheet` / `Config`: manual Tailwind paths. Blank values are auto-detected per project.
+- `Preserve whitespace` / `Preserve duplicates`: passed to the Tailwind sorter.
+- `Attributes`: extra attribute names or regex patterns.
+- `Functions`: helper names or regex patterns, for example `cn`, `clsx`, `tw`, or `/.*Class.*/`.
+
+Default attribute targets:
+
+```text
+class
+className
+:class
+v-bind:class
+ngClass
+[class]
+[ngClass]
+class:list
+```
+
 ## Development
 
 Build the plugin:
@@ -295,8 +207,8 @@ Required GitHub repository secrets:
 Release flow:
 
 ```bash
-git tag v0.2.6
-git push origin v0.2.6
+git tag v0.4.5
+git push origin v0.4.5
 ```
 
 The workflow runs `check`, builds the plugin artifact, uploads the ZIP as a GitHub Actions artifact, signs the plugin when signing secrets are present, and publishes it to JetBrains Marketplace with `publishPlugin`.

@@ -9,7 +9,7 @@
     <depends optional="true" config-file="trier-vue.xml">org.jetbrains.plugins.vue</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationConfigurable
+        <projectConfigurable
                 id="settings.trier"
                 displayName="Trier"
                 parentId="tools"
